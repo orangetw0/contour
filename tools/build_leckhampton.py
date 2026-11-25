@@ -1,4 +1,4 @@
-"""Builds assets/leckhampton.js: the Leckhampton Hill loop as a road line plus a terrain height grid.
+"""Builds public/assets/leckhampton.js: the Leckhampton Hill loop as a road line plus a terrain height grid.
 
 Route: OpenStreetMap routing service (car profile) through the loop's waypoints.
 Heights: Environment Agency LiDAR Composite DTM (1 m survey), Open Government Licence.
@@ -188,5 +188,5 @@ road = [[round(line[k][0] - cE, 2), round(hts[k], 2), round(-(line[k][1] - cN), 
 course = {'name': 'Leckhampton Hill loop', 'size': size, 'cells': cells, 'origin': [cE, cN], 'quarry': [round(to_bng(51.8642, -2.0787)[0] - cE, 1), round(-(to_bng(51.8642, -2.0787)[1] - cN), 1)], 'demMin': lo, 'demMax': hi, 'road': road,
           'credit': 'Route © OpenStreetMap contributors. Heights: Environment Agency LiDAR, Open Government Licence.',
           'dem': base64.b64encode(q).decode()}
-open('assets/leckhampton.js', 'w').write('window.RIDE_COURSES = window.RIDE_COURSES || {};\nwindow.RIDE_COURSES.leckhampton = ' + json.dumps(course) + ';\n')
-print('wrote assets/leckhampton.js', os.path.getsize('assets/leckhampton.js') // 1024, 'KB;', len(road), 'road points')
+open('public/assets/leckhampton.js', 'w').write('window.RIDE_COURSES = window.RIDE_COURSES || {};\nwindow.RIDE_COURSES.leckhampton = ' + json.dumps(course) + ';\n')
+print('wrote public/assets/leckhampton.js', os.path.getsize('public/assets/leckhampton.js') // 1024, 'KB;', len(road), 'road points')

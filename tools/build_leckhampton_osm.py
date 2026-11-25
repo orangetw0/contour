@@ -1,4 +1,4 @@
-"""Builds assets/leckhampton_osm.js: buildings, woods, single trees, hedges and walls around the Leckhampton loop.
+"""Builds public/assets/leckhampton_osm.js: buildings, woods, single trees, hedges and walls around the Leckhampton loop.
 
 Source: OpenStreetMap (© OpenStreetMap contributors, ODbL), read from Overpass responses already cached by the
 real-ride project. Run after build_leckhampton.py:  python3 tools/build_leckhampton_osm.py ~/real-ride/osm-cache
@@ -6,7 +6,7 @@ real-ride project. Run after build_leckhampton.py:  python3 tools/build_leckhamp
 import base64, glob, importlib.util, json, math, os, sys
 
 SRC = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser('~/real-ride/osm-cache')
-course = json.loads(open('assets/leckhampton.js').read().split(' = ', 2)[2].rstrip().rstrip(';'))
+course = json.loads(open('public/assets/leckhampton.js').read().split(' = ', 2)[2].rstrip().rstrip(';'))
 cE, cN = course['origin']; SIZE, CELLS = course['size'], course['cells']; HALF = SIZE / 2
 road = [(p[0], p[2]) for p in course['road']]
 
@@ -106,5 +106,5 @@ for i, v in enumerate(mask):
     if v: bits[i >> 3] |= 1 << (i & 7)
 print('buildings %d, single trees %d, hedge/wall pieces %d (hedge %d), woodland %.2f km2' % (len(buildings), len(trees), len(lines), sum(1 for l in lines if l[4] == 0), sum(mask) * (SIZE / CELLS) ** 2 / 1e6))
 out = {'buildings': buildings, 'trees': trees, 'lines': lines, 'woods': base64.b64encode(bytes(bits)).decode(), 'credit': 'Buildings, woods and hedges © OpenStreetMap contributors.'}
-open('assets/leckhampton_osm.js', 'w').write('window.RIDE_COURSES.leckhampton.osm = ' + json.dumps(out, separators=(',', ':')) + ';\n')
-print('wrote assets/leckhampton_osm.js', os.path.getsize('assets/leckhampton_osm.js') // 1024, 'KB')
+open('public/assets/leckhampton_osm.js', 'w').write('window.RIDE_COURSES.leckhampton.osm = ' + json.dumps(out, separators=(',', ':')) + ';\n')
+print('wrote public/assets/leckhampton_osm.js', os.path.getsize('public/assets/leckhampton_osm.js') // 1024, 'KB')

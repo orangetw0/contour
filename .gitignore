@@ -1,4 +1,5 @@
+node_modules/
 dist/
-index.v*.html
 .DS_Store
 __pycache__/
+tools/.cache/
