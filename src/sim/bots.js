@@ -9,7 +9,7 @@ export const PACERS = Object.freeze([
   { key: 'D', name: 'Pacer D', wkg: 1.5, kit: 'green' }, { key: 'C', name: 'Pacer C', wkg: 2.2, kit: 'blue' },
   { key: 'B', name: 'Pacer B', wkg: 3.0, kit: 'orange' }, { key: 'A', name: 'Pacer A', wkg: 4.0, kit: 'black' }]);
 const NAMES = ['Ana', 'Ben', 'Carla', 'Dmitri', 'Elif', 'Femi', 'Greta', 'Hiro', 'Imani', 'Jonas', 'Keiko', 'Luca', 'Maya', 'Nico', 'Olga', 'Pablo', 'Quinn', 'Rosa', 'Sven', 'Tara', 'Uma', 'Viktor', 'Wen', 'Yusuf', 'Zoe'];
-const KITS = ['red', 'blue', 'green', 'orange', 'white', 'black'], SKIN_KEYS = ['light', 'medium', 'tan', 'dark'], BIKE_KEYS = ['allround', 'allround', 'climbing', 'aero'];
+const KITS = ['red', 'blue', 'green', 'orange', 'white', 'black', 'purple', 'yellow'], SKIN_KEYS = ['light', 'medium', 'tan', 'dark'], BIKE_KEYS = ['allround', 'allround', 'climbing', 'aero'];
 
 // rand: a function returning 0..1 (seeded, so a field of bots can be rebuilt the same)
 export function createBots(line, { humans = 14, pacers = true, near = 0, rand = Math.random } = {}) {
@@ -17,11 +17,11 @@ export function createBots(line, { humans = 14, pacers = true, near = 0, rand = 
   const add = (spec, s, dir = 1) => {
     const body = bodyFor(spec.kg, spec.bike || 'allround');
     const r = createRider({ s, v: 6, power: spec.wkg * spec.kg * 0.7, lane: -1.75 + (rand() - 0.5) * 0.8, body });
-    Object.assign(r, { dir, bot: { ...spec, home: r.lane, clock: rand() * 1000, phase: rand() * 6.28, surge: 0, nextSurge: 40 + rand() * 140, effort: 0.75 }, name: spec.name, character: spec.character, kit: spec.kit, kg: spec.kg, heightM: spec.heightM, skin: spec.skin });
+    Object.assign(r, { dir, bot: { ...spec, home: r.lane, clock: rand() * 1000, phase: rand() * 6.28, surge: 0, nextSurge: 40 + rand() * 140, effort: 0.75 }, name: spec.name, character: spec.character, kit: spec.kit, kg: spec.kg, heightM: spec.heightM, skin: spec.skin, bike: spec.bike || 'allround' });
     if (dir < 0) r.lane = r.bot.home;
     bots.push(r); return r;
   };
-  if (pacers) PACERS.forEach((p, i) => add({ ...p, pacer: true, character: i % 2 ? 'female' : 'male', kg: i % 2 ? 62 : 74, heightM: i % 2 ? 1.68 : 1.8, skin: SKIN_KEYS[i % 4] }, (near + 60 + i * line.LEN / PACERS.length) % line.LEN));
+  if (pacers) PACERS.forEach((p, i) => add({ ...p, pacer: true, bike: 'aero', character: i % 2 ? 'female' : 'male', kg: i % 2 ? 62 : 74, heightM: i % 2 ? 1.68 : 1.8, skin: SKIN_KEYS[i % 4] }, (near + 60 + i * line.LEN / PACERS.length) % line.LEN));
   const used = new Set();
   for (let i = 0; i < humans; i++) {
     let name; do { name = pick(NAMES) + ' ' + String.fromCharCode(65 + Math.floor(rand() * 26)) + '.'; } while (used.has(name)); used.add(name);

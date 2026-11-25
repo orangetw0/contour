@@ -12,9 +12,10 @@ const riders = [];
 for (let i = 0; i < 4; i++) {
   const rig = new THREE.Group(); const side = !/front|back/.test(q.get('v') || 'side'); rig.position.set(side ? 0 : (i - 1.5) * 1.6, 0, side ? (i - 1.5) * 2.3 : 0); scene.add(rig);
   // ?who=[[kg, metres], ...] sets the four riders' builds
+  const K = q.get('kits') ? q.get('kits').split(',') : Object.keys(KITS);
   const who = (q.get('who') ? JSON.parse(q.get('who')) : [[72, 1.8], [58, 1.66], [95, 1.78], [78, 1.62]])[i], geo = makeGeo(who[1] / 1.8);
-  const bike = createBike({ frame: Object.values(KITS)[i].bike, geo }); rig.add(bike.object);
-  const av = createAvatar(await loadCharacter(kinds[i % 2]), { kit: Object.values(KITS)[i], sex: kinds[i % 2], kg: who[0], heightM: who[1], skin: ['light', 'medium', 'tan', 'dark'][i], geo }); rig.add(av.object);
+  const bike = createBike({ frame: KITS[K[i]].bike, geo, style: i < 2 ? 'climbing' : 'aero' }); rig.add(bike.object);
+  const av = createAvatar(await loadCharacter(kinds[i % 2]), { kit: KITS[K[i]], sex: kinds[i % 2], kg: who[0], heightM: who[1], skin: ['light', 'medium', 'tan', 'dark'][i], geo }); rig.add(av.object);
   const a = +(q.get('a') || 0) + i * 1.3; bike.update(0, a); av.pose(a); riders.push(av);
 }
 const cam = new THREE.PerspectiveCamera(38, 2, 0.1, 100);
@@ -23,6 +24,16 @@ if (v === 'side') { cam.fov = 30; cam.updateProjectionMatrix(); cam.position.set
 if (v === 'front') { cam.fov = 26; cam.updateProjectionMatrix(); cam.position.set(1.2, 1.3, 8); cam.lookAt(0, 0.95, 0); }
 if (v === 'back') { cam.fov = 26; cam.updateProjectionMatrix(); cam.position.set(1.0, 2.0, -8); cam.lookAt(0, 0.95, 0); }
 if (v === 'close') { cam.fov = 30; cam.updateProjectionMatrix(); cam.position.set(-3.6, 1.5, 0.2); cam.lookAt(0, 1.0, -0.2); }
+if (v === 'bike') { cam.fov = 16; cam.updateProjectionMatrix(); cam.position.set(-7.5, 1.0, q.get('z') ? +q.get('z') : -3.45); cam.lookAt(0, 0.62, q.get('z') ? +q.get('z') : -3.45); }
+if (v === 'bike34') { cam.fov = 18; cam.updateProjectionMatrix(); cam.position.set(-3.6, 1.5, 4.6); cam.lookAt(0, 0.6, 1.2); }
+if (v === 'head') { cam.fov = 9; cam.updateProjectionMatrix(); cam.position.set(-1.6, 1.5, 2.9); cam.lookAt(0, 1.4, 1.72); }
+if (v === 'headside') { cam.fov = 9; cam.updateProjectionMatrix(); cam.position.set(-2.4, 1.45, 1.75); cam.lookAt(0, 1.4, 1.72); }
+if (v === 'headback') { cam.fov = 9; cam.updateProjectionMatrix(); cam.position.set(-1.2, 1.7, 0.3); cam.lookAt(0, 1.4, 1.72); }
+if (v === 'hands') { cam.fov = 6; cam.updateProjectionMatrix(); cam.position.set(-3, 1.1, -0.6); cam.lookAt(0, 0.95, -0.6); }
+if (v === 'handstop') { cam.fov = 7; cam.updateProjectionMatrix(); cam.position.set(0, 4, -0.62); cam.up.set(0, 0, 1); cam.lookAt(0, 0.95, -0.6); }
+if (v === 'handsfront') { cam.fov = 7; cam.updateProjectionMatrix(); cam.position.set(0.3, 1.3, 3.2); cam.lookAt(0, 0.93, -0.6); }
+if (v === 'feet') { cam.fov = 11; cam.updateProjectionMatrix(); cam.position.set(-2.6, 0.35, 1.5); cam.lookAt(0, 0.27, 1.15); }
+if (q.get('norider')) riders.forEach(r => { r.object.visible = false; });
 if (v === 'arm') { cam.fov = 12; cam.updateProjectionMatrix(); cam.position.set(-3, 1.5, -1.0); cam.lookAt(0, 1.15, -1.0); }
 if (v === 'torso') { cam.fov = 14; cam.updateProjectionMatrix(); cam.position.set(-3.2, 1.6, 2.1); cam.lookAt(0, 1.1, 1.25); }
 r.render(scene, cam); window.done = { lean: riders.map(x => x.lean) }; window.riders = riders;

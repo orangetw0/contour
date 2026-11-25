@@ -5,21 +5,16 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
-import { worldPos, worldQuat, setWorldQuat, rotateWorld, twoBone, frameRotation } from './ik.js';
+import { worldPos, worldQuat, setWorldQuat, rotateWorld, twoBone, aim, frameRotation } from './ik.js';
 import { GEO } from './bike.js';
 import { shapeOf, buildTopology, reshape } from './body.js';
+import { KITS, dress, limbCoord } from './kit.js';
+import { addHeadGear, addShoes } from './gear.js';
+
+export { KITS };
 
 const V3 = THREE.Vector3, X = new V3(1, 0, 0), Y = new V3(0, 1, 0), Z = new V3(0, 0, 1);
 export const CHARACTERS = Object.freeze({ male: 'Male', female: 'Female' });
-export const KITS = Object.freeze({
-  red: { name: 'Red', jersey: 0xc8202a, trim: 0xf2f2f2, bike: 0xc2202c },
-  blue: { name: 'Blue', jersey: 0x1f5fd0, trim: 0xf4d23c, bike: 0x1c4fb0 },
-  green: { name: 'Green', jersey: 0x1f9a55, trim: 0x101014, bike: 0x15803f },
-  orange: { name: 'Orange', jersey: 0xf07a1a, trim: 0x15151a, bike: 0xe0660f },
-  white: { name: 'White', jersey: 0xeeeeee, trim: 0x2a6fe0, bike: 0xdadde2 },
-  black: { name: 'Black', jersey: 0x1a1a1e, trim: 0xe83a5e, bike: 0x222226 },
-});
-
 // Skin tones, as a lift applied to the model's one (dark) skin texture.
 export const SKINS = Object.freeze({ light: { name: 'Light', gain: [2.5, 2.0, 1.8] }, medium: { name: 'Medium', gain: [1.9, 1.55, 1.38] }, tan: { name: 'Tan', gain: [1.4, 1.22, 1.12] }, dark: { name: 'Dark', gain: [1, 1, 1] } });
 
@@ -29,106 +24,12 @@ export const loadCharacter = kind => {
   return cache.get(kind);
 };
 
-const ARM = /^(upperarm|lowerarm|hand|index|middle|ring|pinky|thumb)/, HAND = /^(hand|index|middle|ring|pinky|thumb)/;
-const LEG = /^(thigh|calf|foot|ball)/, FOOT = /^(foot|ball)/, HEAD = /^(neck|Head)/;
-
-// How far along its limb a point is: 0 at the shoulder or hip, 1 at the wrist or ankle. Hems are drawn from this.
-function limbCoord(joint) {
-  const along = (a, b) => { const d = new V3().subVectors(b, a), l2 = d.lengthSq(); return q => (q.dot(d) - a.dot(d)) / l2; };
-  const armT = { 1: along(joint.upperarm_l, joint.hand_l), [-1]: along(joint.upperarm_r, joint.hand_r) }, legT = { 1: along(joint.thigh_l, joint.foot_l), [-1]: along(joint.thigh_r, joint.foot_r) };
-  return (p, arm, leg) => (leg > arm ? legT : armT)[p.x >= 0 ? 1 : -1](p);
-}
-
-/* Paint kit onto the body. Each vertex learns how much it belongs to an arm, a leg, a hand or foot, or the head
-   (from the skeleton's weights) and how far along its limb it is; the shader draws hems from those. */
-function dress(body, joint, kit, skin) {
-  const geo = body.geometry, pos = geo.attributes.position, si = geo.attributes.skinIndex, sw = geo.attributes.skinWeight, names = body.skeleton.bones.map(b => b.name);
-  if (!geo.attributes.aPart) {                         // worked out once per character; every rider of that character shares it
-  const part = new Float32Array(pos.count * 4), head = new Float32Array(pos.count), p = new V3();
-  const coord = limbCoord(joint);
-  for (let i = 0; i < pos.count; i++) {
-    let arm = 0, leg = 0, end = 0, hd = 0;
-    for (let k = 0; k < 4; k++) {
-      const n = names[si.getComponent(i, k)], w = sw.getComponent(i, k);
-      if (ARM.test(n)) arm += w; if (LEG.test(n)) leg += w; if (HAND.test(n) || FOOT.test(n)) end += w; if (HEAD.test(n)) hd += w;
-    }
-    p.fromBufferAttribute(pos, i);
-    part.set([arm, leg, end, coord(p, arm, leg)], i * 4); head[i] = hd;
-  }
-  geo.setAttribute('aPart', new THREE.BufferAttribute(part, 4));
-  geo.setAttribute('aHead', new THREE.BufferAttribute(head, 1));
-  }
-  const mat = body.material.clone(), c = h => ({ value: new THREE.Color(h) });
-  const u = { uJersey: c(kit.jersey), uTrim: c(kit.trim), uBib: c(0x101013), uSock: c(0xf0f0f0), uShoe: c(0xf4f4f4), uGlove: c(0x121214), uSkin: { value: new V3(...skin.gain) },
-    uLines: { value: new THREE.Vector4(joint.neck_01.y + 0.035, joint.pelvis.y + 0.075, (joint.spine_03.y + joint.neck_01.y) / 2 - 0.02, joint.foot_l.y - 0.03) } };
-  mat.onBeforeCompile = s => {
-    Object.assign(s.uniforms, u);
-    s.vertexShader = 'attribute vec4 aPart; attribute float aHead; varying vec4 vPart; varying float vHead; varying vec3 vRest;\n' + s.vertexShader
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\n vPart = aPart; vHead = aHead; vRest = position;');
-    s.fragmentShader = s.fragmentShader.replace('void main() {', 'float kitCloth;\nvoid main() {')
-      // cloth lies smooth over the body, and bare skin shows less sinew than the model's texture has
-      .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n normal = normalize(mix(normal, nonPerturbedNormal, mix(0.45, 0.85, kitCloth)));')
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(max(roughnessFactor, 0.55), 0.78, kitCloth);');
-    s.fragmentShader = 'uniform vec3 uJersey, uTrim, uBib, uSock, uShoe, uGlove, uSkin; uniform vec4 uLines; varying vec4 vPart; varying float vHead; varying vec3 vRest;\n' + s.fragmentShader
-      .replace('#include <map_fragment>', `#include <map_fragment>
-      {
-        vec3 skin = min(diffuseColor.rgb * uSkin, vec3(0.92)), c;
-        float arm = vPart.x, leg = vPart.y, end = vPart.z, t = vPart.w;
-        vec3 jersey = mix(uJersey, uTrim, smoothstep(0.045, 0.04, abs(vRest.y - uLines.z)) * smoothstep(0.4, 0.12, arm));   // a band across the chest, fading out at the shoulders
-        if (vHead > 0.5) c = skin;
-        else if (arm > 0.5) c = end > 0.5 ? uGlove : (t < 0.40 ? (t > 0.33 ? uTrim : uJersey) : skin);       // short sleeves with a cuff
-        else if (leg > 0.5 && end > 0.45 && vRest.y < uLines.w) discard;
-        else if (leg > 0.5) c = end > 0.45 ? uSock : (t < 0.43 ? (t > 0.40 ? uTrim : uBib) : (t > 0.80 ? uSock : skin));
-        else c = vRest.y > uLines.x ? skin : (vRest.y < uLines.y ? uBib : jersey);
-        kitCloth = c == skin ? 0. : 1.;
-        diffuseColor.rgb = c;
-      }`);
-  };
-  mat.customProgramCacheKey = () => 'contour-kit';
-  body.material = mat;
-  return u;
-}
-
-function helmet(joint, headBone, body, kit) {
-  // the skull's size, from the head's own vertices above the brow
-  const pos = body.geometry.attributes.position, hd = body.geometry.attributes.aHead, box = new THREE.Box3(), p = new V3(), brow = joint.Head.y + 0.105;
-  for (let i = 0; i < pos.count; i++) { p.fromBufferAttribute(pos, i); if (hd.getX(i) > 0.9 && p.y > brow) box.expandByPoint(p); }
-  const c = box.getCenter(new V3()), size = box.getSize(new V3());
-  const shell = new THREE.SphereGeometry(1, 28, 14, 0, Math.PI * 2, 0, Math.PI * 0.56), col = new Float32Array(shell.attributes.position.count * 3), a = new THREE.Color(kit.jersey), b = new THREE.Color(0x0c0c0e);
-  for (let i = 0; i < shell.attributes.position.count; i++) {       // dark vents running front to back
-    p.fromBufferAttribute(shell.attributes.position, i);
-    const vent = p.y > 0.25 && Math.abs(Math.sin(p.x * 9.5)) > 0.8 && Math.abs(p.z) < 0.8;
-    (vent ? b : a).toArray(col, i * 3);
-  }
-  shell.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  const lid = new THREE.Mesh(shell, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35 }));
-  lid.scale.set(size.x / 2 + 0.024, box.max.y - brow + 0.03, size.z / 2 + 0.034); lid.position.set(c.x, brow, c.z - 0.006);
-  const lens = new THREE.Mesh(new THREE.CylinderGeometry(size.x / 2 + 0.006, size.x / 2 + 0.006, 0.042, 18, 1, true, -0.95, 1.9), new THREE.MeshStandardMaterial({ color: 0x0a0a0c, roughness: 0.15, metalness: 0.6, side: THREE.DoubleSide }));
-  lens.position.set(c.x, joint.Head.y + 0.085, box.max.z - size.x / 2 - 0.004);
-  for (const m of [lid, lens]) { m.castShadow = true; m.updateMatrix(); m.applyMatrix4(new THREE.Matrix4().copy(headBone.matrixWorld).invert()); headBone.add(m); }
-}
-
-// Shoes: a shell round each foot, white with a dark sole, carried by the foot bone.
-function shoes(body, bones, names, ankleY) {
-  const pos = body.geometry.attributes.position, si = body.geometry.attributes.skinIndex, sw = body.geometry.attributes.skinWeight, box = new THREE.Box3(), p = new V3();
-  for (let i = 0; i < pos.count; i++) {
-    let w = 0; for (let k = 0; k < 4; k++) if (FOOT.test(names[si.getComponent(i, k)])) w += sw.getComponent(i, k);
-    p.fromBufferAttribute(pos, i); if (w > 0.55 && p.x > 0 && p.y < ankleY - 0.012) box.expandByPoint(p);
-  }
-  const c = box.getCenter(new V3()), size = box.getSize(new V3()), geo = new THREE.SphereGeometry(1, 18, 12), g = geo.attributes.position, col = new Float32Array(g.count * 3);
-  for (let i = 0; i < g.count; i++) {
-    p.fromBufferAttribute(g, i);
-    const sole = p.y < -0.6, taper = 1 - 0.42 * Math.max(0, p.z) ** 2 - 0.2 * Math.max(0, -p.z) ** 2;      // narrower at the toe, a little at the heel
-    g.setXYZ(i, p.x * taper, Math.max(p.y, -0.78) * (1 - 0.45 * Math.max(0, p.z)), p.z);                       // flat underneath, lower over the toes
-    col.set(sole ? [0.05, 0.05, 0.06] : [0.93, 0.93, 0.93], i * 3);
-  }
-  geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.computeVertexNormals();
-  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45 });
-  for (const side of [1, -1]) {
-    const shoe = new THREE.Mesh(geo, mat), bone = bones[side > 0 ? 'foot_l' : 'foot_r'];
-    shoe.scale.set(size.x / 2 + 0.004, size.y / 2 + 0.01, size.z / 2 + 0.01); shoe.position.set(side * c.x, c.y + 0.002, c.z);
-    shoe.castShadow = true; shoe.updateMatrix(); shoe.applyMatrix4(new THREE.Matrix4().copy(bone.matrixWorld).invert()); bone.add(shoe);
-  }
+// Measure the head at rest, so the helmet and glasses can be made to fit it.
+function measureHead(body, eyesMesh, joint) {
+  const eyes = new THREE.Box3().setFromBufferAttribute(eyesMesh.geometry.attributes.position), brow = eyes.max.y + 0.034;
+  const pos = body.geometry.attributes.position, hd = body.geometry.attributes.aHead, skull = new THREE.Box3(), p = new V3();
+  for (let i = 0; i < pos.count; i++) { p.fromBufferAttribute(pos, i); if (hd.getX(i) > 0.9 && p.y > brow) skull.expandByPoint(p); }
+  return { skull, brow, eyes, neck: joint.Head.y };
 }
 
 /* kit: colours. sex, kg, heightM: the rider's build. skin: one of SKINS. geo: the bike's measurements (makeGeo). */
@@ -136,14 +37,14 @@ export function createAvatar(gltf, { kit = KITS.red, sex = 'male', kg = 72, heig
   const model = cloneSkinned(gltf.scene), object = new THREE.Group();
   object.add(model); object.updateMatrixWorld(true);
   const bones = {}, rest = {}, joint = {};
-  let body = null;
+  let body = null, eyesMesh = null;
   model.traverse(o => {
     if (o.isBone) { bones[o.name] = o; rest[o.name] = { q: o.quaternion.clone(), p: o.position.clone(), w: worldQuat(o, new THREE.Quaternion()) }; joint[o.name] = worldPos(o, new V3()); }
-    if (o.isSkinnedMesh) { o.frustumCulled = false; o.castShadow = true; o.receiveShadow = true; if (!body || o.geometry.attributes.position.count > body.geometry.attributes.position.count) body = o; }
+    if (o.isSkinnedMesh) { o.frustumCulled = false; o.castShadow = true; o.receiveShadow = true; if (!body || o.geometry.attributes.position.count > body.geometry.attributes.position.count) body = o; if (/eye/i.test(o.material.name)) eyesMesh = o; if (/hair/i.test(o.material.name)) o.visible = false; }      // the eyebrow cards have no cut-out and sit behind the glasses anyway
   });
-  dress(body, joint, kit, SKINS[skin] || SKINS.medium);
   // this rider's own body: the shared model reshaped for their height and weight
   const src = body.geometry, shape = shapeOf({ sex, kg, heightM }), names = body.skeleton.bones.map(b => b.name);
+  dress(body, joint, kit, (SKINS[skin] || SKINS.medium).gain, shape.girth.thigh);
   if (!topologies.has(src)) topologies.set(src, buildTopology(src.attributes.position.array, src.index.array));
   const keep = new Float32Array(src.attributes.position.count), part = src.attributes.aPart, head = src.attributes.aHead;
   for (let i = 0; i < keep.length; i++) keep[i] = Math.min(1, head.getX(i) * 1.5 + part.getZ(i) * 1.5);
@@ -158,8 +59,8 @@ export function createAvatar(gltf, { kit = KITS.red, sex = 'male', kg = 72, heig
   }
   mine.boundingSphere = src.boundingSphere; mine.boundingBox = src.boundingBox;
   body.geometry = mine;
-  helmet(joint, bones.Head, body, kit);
-  shoes(body, bones, names, joint.foot_l.y);
+  addHeadGear(bones.Head, measureHead(body, eyesMesh || body, joint), kit);
+  addShoes(body, bones, names, joint.foot_l.y, kit);
   for (const s of ['_l', '_r']) rest['upperarm' + s].p.multiplyScalar(shape.shoulders);         // narrower or broader shoulders
   // height: the whole rider scales, and everything below works in the scaled size
   const tall = new THREE.Box3().setFromBufferAttribute(src.attributes.position).max.y, scale = heightM / tall;
@@ -172,7 +73,6 @@ export function createAvatar(gltf, { kit = KITS.red, sex = 'male', kg = 72, heig
   const armLen = joint.upperarm_l.distanceTo(joint.lowerarm_l) + joint.lowerarm_l.distanceTo(joint.hand_l);
   const ballFromAnkle = new V3().subVectors(joint.ball_l, joint.foot_l), tmp = new V3(), tmp2 = new V3(), q = new THREE.Quaternion(), hips = new V3(), pedal = new V3(), ankle = new V3();
   const hip = geo.hipPoint(), hood = { 1: geo.hoodPoint(1), [-1]: geo.hoodPoint(-1) };
-  const fingers = ['index', 'middle', 'ring', 'pinky'].flatMap(f => [1, 2, 3].map(n => `${f}_0${n}`));
 
   function torso(lean) {
     for (const n in rest) if (!/^(upperarm|lowerarm|hand|thigh|calf|foot|ball|index|middle|ring|pinky|thumb)/.test(n)) { B[n].quaternion.copy(rest[n].q); B[n].position.copy(rest[n].p); }
@@ -186,11 +86,12 @@ export function createAvatar(gltf, { kit = KITS.red, sex = 'male', kg = 72, heig
   let lo = 0.35, hi = 1.3;
   for (let i = 0; i < 14; i++) {
     const mid = (lo + hi) / 2; torso(mid);
-    if (worldPos(B.upperarm_l, tmp).distanceTo(hood[1]) > armLen * 0.95) lo = mid; else hi = mid;
+    if (worldPos(B.upperarm_l, tmp).distanceTo(hood[1]) > armLen * 0.97) lo = mid; else hi = mid;
   }
   const lean = (lo + hi) / 2;
 
-  const handFwd = new V3(0, -0.45, 1).normalize(), toeFwd = new V3(), toeUp = new V3(), curl = new V3();
+  const toeFwd = new V3(), toeUp = new V3(), curl = new V3(), handFwd = new V3(), palm = new V3(), wrist = new V3();
+  const handLen = joint.hand_l.distanceTo(joint.middle_01_l), CURL = { index: [0.55, 1.0, 0.6], middle: [0.7, 1.05, 0.6], ring: [0.95, 1.1, 0.6], pinky: [1.0, 1.1, 0.6] };
   /* crankAngle: radians, 0 with the right pedal up. sway: small side-to-side rock of the shoulders (radians). */
   function pose(crankAngle, sway = 0) {
     for (const n in rest) B[n].quaternion.copy(rest[n].q);
@@ -198,15 +99,20 @@ export function createAvatar(gltf, { kit = KITS.red, sex = 'male', kg = 72, heig
     if (sway) rotateWorld(B.spine_02, Z, sway);
     for (const side of [1, -1]) {
       const s = side > 0 ? '_l' : '_r';
-      // arm: wrist to the hood, elbow down and slightly out; the hand wraps the hood with the palm inward
-      twoBone(B['upperarm' + s], B['lowerarm' + s], B['hand' + s], hood[side], tmp.set(side * 0.45, -1, -0.25));
-      const palm = tmp.set(-side, -0.25, 0).normalize();
+      // arm and hand: the palm lies on top of the brake hood with the fingers pointing forward and a little down,
+      // the first two fingers hooked over the lever and the others wrapped under the hood; the thumb sits inside
+      handFwd.set(-side * 0.1, -0.3, 0.95).normalize(); palm.set(-side * 0.5, -0.86, -0.1).addScaledVector(handFwd, 0.3).normalize();
+      wrist.copy(hood[side]).addScaledVector(handFwd, -handLen * 0.42).addScaledVector(palm, -0.006);
+      twoBone(B['upperarm' + s], B['lowerarm' + s], B['hand' + s], wrist, tmp.set(side * 0.5, -1, -0.3));
       setWorldQuat(B['hand' + s], frameRotation(tmp2.set(side, 0, 0), Y.clone().negate(), handFwd, palm, q).multiply(rest['hand' + s].w));
       curl.crossVectors(handFwd, palm).normalize();
-      for (const f of fingers) rotateWorld(B[f + s], curl, 0.55);
+      for (const f in CURL) CURL[f].forEach((bend, n) => rotateWorld(B[`${f}_0${n + 1}${s}`], curl, bend));
+      // the thumb lies along the inside of the hood, pointing forward and down
+      aim(B['thumb_01' + s], B['thumb_02' + s], worldPos(B['thumb_01' + s], tmp).addScaledVector(handFwd, 0.75).addScaledVector(palm, 0.55).add(tmp2.set(-side * 0.25, 0, 0)));
+      aim(B['thumb_02' + s], B['thumb_03' + s], worldPos(B['thumb_02' + s], tmp).addScaledVector(handFwd, 0.6).addScaledVector(palm, 0.8).add(tmp2.set(side * 0.1, 0, 0)));
       // leg: the ball of the foot sits on the pedal; the ankle drops a little over the top and points on the way down
       geo.pedalPoint(side, crankAngle, pedal);
-      const a = crankAngle + (side > 0 ? Math.PI : 0), pitch = 0.3 + 0.2 * Math.sin(a - 0.6);       // toe-down angle
+      const a = crankAngle + (side > 0 ? Math.PI : 0), pitch = 0.2 + 0.16 * Math.sin(a - 0.6);       // toe-down angle
       toeFwd.set(0, -Math.sin(pitch), Math.cos(pitch)); toeUp.set(0, Math.cos(pitch), Math.sin(pitch));
       frameRotation(Z, Y, toeFwd, toeUp, q);
       ankle.copy(ballFromAnkle).applyQuaternion(q).negate().add(pedal).addScaledVector(toeUp, 0.05);

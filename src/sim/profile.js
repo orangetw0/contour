@@ -12,7 +12,7 @@ export const BIKES = Object.freeze({
 });
 
 export const DEFAULT_PROFILE = Object.freeze({ riderKg: 72, heightCm: 178, bike: 'allround', units: 'metric', character: 'male', kit: 'red', skin: 'medium' });
-const CHARACTER = ['male', 'female'], KIT = ['red', 'blue', 'green', 'orange', 'white', 'black'], SKIN = ['light', 'medium', 'tan', 'dark'], CM = [140, 210];
+const CHARACTER = ['male', 'female'], KIT = ['red', 'blue', 'green', 'orange', 'white', 'black', 'purple', 'yellow'], SKIN = ['light', 'medium', 'tan', 'dark'], CM = [140, 210];
 const KG = [30, 200];
 
 export function cleanProfile(raw) {
@@ -49,4 +49,4 @@ export function bodyFor(riderKg, bikeKey) {
 export const bodyOf = profile => bodyFor(profile.riderKg, profile.bike);
 
 // what the picture needs: who to draw
-export const lookOf = profile => ({ character: profile.character, kit: profile.kit, kg: profile.riderKg, heightM: profile.heightCm / 100, skin: profile.skin });
+export const lookOf = profile => ({ character: profile.character, kit: profile.kit, kg: profile.riderKg, heightM: profile.heightCm / 100, skin: profile.skin, bike: profile.bike });
