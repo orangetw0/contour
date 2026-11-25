@@ -10,6 +10,9 @@ rider profiles, other riders, real routes and ride export.
 - Four looks: Golden, Overcast, Rain and Mist. Buttons at the top, keys 1–4, or by voice. `?theme=christmas` gives the valley under snow.
 - Your rider on screen: a rigged male or female character in cycling kit on a road bike, pedalling at your cadence, seen from behind (the V key switches to the view from the saddle). Choose the rider and kit colour in the Rider panel.
 - Steering: hold ← or → (or A and D) to move across your lane. U turns round and rides back the other way. P pauses.
+- Other riders: a field of bots with the same physics as you. They push on climbs, coast descents, sit on wheels, pull out to pass and chat among themselves. `?bots=0` rides alone; `?bots=30` brings a crowd.
+- Drafting: sit behind another rider and your air drag drops by up to about a third, more behind a bigger rider. The HUD shows the saving.
+- Pacers: four riders holding 1.5, 2.2, 3.0 and 4.0 w/kg round the course. The Pacers panel shows where they are and drops you onto a wheel.
 - Skip forward and back 250 m with the ] and [ keys.
 - Hide everything on screen for a clean view: the Hide info button, the H key, or say "hide". `?scenery` drifts along on its own.
 - Power from a slider, or from a Bluetooth trainer (Chrome or Edge). Power is read from the Cycling Power service, or from the Fitness Machine Service (FTMS) on trainers that have only that. If the trainer supports resistance control, the ride also sends it the road gradient; the − and + buttons set how much of each hill it feels (`?hills=` sets it for one visit).
@@ -33,12 +36,12 @@ npm run build      # static site in dist/
 
 - `index.html` – the page's markup.
 - `src/main.js` – entry point: wires the simulation to the world and the controls, and draws each frame.
-- `src/sim/` – the simulation, with no drawing in it: `physics.js` (power to speed), `rider.js` (one rider's state), `profile.js` (weight and bike types), `loop.js` (fixed-timestep clock), `metrics.js` (rolling power, w/kg), `recorder.js` (one sample a second), `units.js`.
+- `src/sim/` – the simulation, with no drawing in it: `physics.js` (power to speed), `rider.js` (one rider's state), `profile.js` (weight and bike types), `loop.js` (fixed-timestep clock), `metrics.js` (rolling power, w/kg), `recorder.js` (one sample a second), `draft.js` (shelter behind other riders), `bots.js` (other riders and pacers), `chatter.js` (what they say), `units.js`.
 - `src/course/` – the road line (`line.js`), how fast each bend can be taken (`speedLimit.js`) and course loading (`index.js`).
 - `src/devices/` – Bluetooth message formats: trainer (`ftms.js`), heart rate and cadence (`sensors.js`).
 - `src/export/fit.js` – writes a ride as a FIT file.
 - `src/riders/` – the rider you see: the bike (`bike.js`), the character, kit and riding position (`avatar.js`), the posing maths (`ik.js`) and placing them on the road (`riderView.js`). `tools/avatar-preview.html` shows riders on their own while the dev server runs.
-- `src/app/` – trainer and heart-rate connections, Rider panel, ride log, save, voice and sound.
+- `src/app/` – trainer and heart-rate connections, Rider panel, other riders and pacers (`company.js`), ride log, save, voice and sound.
 - `src/world/` – everything you see, one file per part (terrain, road, pines, weather…). Each imports the one before it, because the scenery is built from one seeded random sequence.
 - `public/assets/` – textures and course data.
 - `tools/` – scripts that build the Leckhampton course data.

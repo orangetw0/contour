@@ -17,6 +17,7 @@
   <div><b id="h-di">0.00</b><span id="h-di-u">km</span></div>
   <div id="h-hr-box" hidden><b id="h-hr">–</b><span>bpm</span></div>
   <div id="h-cd-box" hidden><b id="h-cd">–</b><span>rpm</span></div>
+  <div id="h-dr-box" hidden><b id="h-dr">0</b><span>draft %</span></div>
 </div>
 <div id="ctl">
   <span>POWER</span>
@@ -33,12 +34,15 @@
   <span id="hills" title="How much of each hill a smart trainer makes you feel. Turn it down if the climbs are too hard; 0 % is flat."><button id="hless" aria-label="Make hills easier">−</button><span id="hval">Hills 50 %</span><button id="hmore" aria-label="Make hills harder">+</button></span>
   <button id="clean" title="Hide everything on screen (H key, or say “hide”). Press H, click, or say “show” to bring it back">Hide info</button>
   <button id="hr" title="Connect a Bluetooth heart-rate monitor (Chrome or Edge)">Heart rate</button>
-  <button id="riderbtn" title="Your weight, bike and units">Rider</button>
+  <button id="pacerbtn" title="Riders holding a steady pace round the course. Join one to ride with it.">Pacers</button>
+  <button id="riderbtn" title="Your rider, weight, bike and units">Rider</button>
   <button id="logbtn" title="Distance you have ridden, kept in this browser">Log</button>
   <button id="save" title="Download this ride as a FIT file, to upload to Strava, Garmin Connect, Wahoo or another training site">Save ride</button>
 </div>
 <div id="log" class="panel" hidden></div>
 <div id="rider" class="panel" hidden></div>
+<div id="pacers" class="panel" hidden></div>
+<div id="chat" aria-live="polite"></div>
 <div id="credit"></div>
 <div id="loading">Building the valley…</div>
 

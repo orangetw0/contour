@@ -1,5 +1,5 @@
 /* Ride log: distance ridden, kept in this browser (localStorage). */
-import { $, placePanel } from '../util/dom.js';
+import { $, panelButton } from '../util/dom.js';
 import { COURSE_NAMES } from '../course/index.js';
 
 const KEY = 'contour-log', MIN = 100;         // rides under 100 m are not kept
@@ -30,7 +30,7 @@ export function initLog({ rider, course, unit }) {
       (all.length ? `<button id="logclear">Clear log</button>` : '');
     const c = $('logclear'); if (c) c.onclick = () => { if (confirm('Delete the whole ride log from this browser?')) { try { localStorage.removeItem(KEY); } catch {} rider.dist = 0; rider.time = 0; draw(); } };
   };
-  btn.onclick = () => { $('rider').hidden = true; $('riderbtn').classList.remove('on'); box.hidden = !box.hidden; btn.classList.toggle('on', !box.hidden); if (!box.hidden) { placePanel(box); draw(); } };
+  panelButton(btn, box, draw);
   setInterval(() => { save(); if (!box.hidden) draw(); }, 5000);
   addEventListener('pagehide', save);
   document.addEventListener('visibilitychange', save);

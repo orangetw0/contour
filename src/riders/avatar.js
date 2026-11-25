@@ -32,6 +32,7 @@ const LEG = /^(thigh|calf|foot|ball)/, FOOT = /^(foot|ball)/, HEAD = /^(neck|Hea
    (from the skeleton's weights) and how far along its limb it is; the shader draws hems from those. */
 function dress(body, joint, kit) {
   const geo = body.geometry, pos = geo.attributes.position, si = geo.attributes.skinIndex, sw = geo.attributes.skinWeight, names = body.skeleton.bones.map(b => b.name);
+  if (!geo.attributes.aPart) {                         // worked out once per character; every rider of that character shares it
   const part = new Float32Array(pos.count * 4), head = new Float32Array(pos.count), p = new V3();
   const along = (a, b) => { const d = new V3().subVectors(b, a), l2 = d.lengthSq(); return q => (q.dot(d) - a.dot(d)) / l2; };
   const armT = { 1: along(joint.upperarm_l, joint.hand_l), [-1]: along(joint.upperarm_r, joint.hand_r) }, legT = { 1: along(joint.thigh_l, joint.foot_l), [-1]: along(joint.thigh_r, joint.foot_r) };
@@ -47,6 +48,7 @@ function dress(body, joint, kit) {
   }
   geo.setAttribute('aPart', new THREE.BufferAttribute(part, 4));
   geo.setAttribute('aHead', new THREE.BufferAttribute(head, 1));
+  }
   const mat = body.material.clone(), c = h => ({ value: new THREE.Color(h) });
   const u = { uJersey: c(kit.jersey), uTrim: c(kit.trim), uBib: c(0x101013), uSock: c(0xf0f0f0), uShoe: c(0xf4f4f4), uGlove: c(0x121214), uSkin: { value: new THREE.Color(kit.skin ?? 0xffffff) },
     uLines: { value: new THREE.Vector4(joint.neck_01.y + 0.035, joint.pelvis.y + 0.075, (joint.spine_03.y + joint.neck_01.y) / 2 - 0.02, 0) } };
@@ -100,7 +102,6 @@ export function createAvatar(gltf, { kit = KITS.red } = {}) {
     if (o.isBone) { bones[o.name] = o; rest[o.name] = { q: o.quaternion.clone(), p: o.position.clone(), w: worldQuat(o, new THREE.Quaternion()) }; joint[o.name] = worldPos(o, new V3()); }
     if (o.isSkinnedMesh) { o.frustumCulled = false; o.castShadow = true; o.receiveShadow = true; if (!body || o.geometry.attributes.position.count > body.geometry.attributes.position.count) body = o; }
   });
-  body.geometry = body.geometry.clone();
   dress(body, joint, kit);
   helmet(model, joint, bones.Head, body, kit);
 

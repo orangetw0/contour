@@ -3,11 +3,24 @@ import * as THREE from 'three';
 import { createBike } from './bike.js';
 import { loadCharacter, createAvatar, KITS } from './avatar.js';
 
-const V3 = THREE.Vector3, m = new THREE.Matrix4(), left = new V3(), up = new V3(), fwd = new V3(), pos = new V3(), q = new THREE.Quaternion(), AXIS_Z = new V3(0, 0, 1), AXIS_Y = new V3(0, 1, 0);
+const V3 = THREE.Vector3, m = new THREE.Matrix4(), left = new V3(), up = new V3(), fwd = new V3(), q = new THREE.Quaternion(), AXIS_Z = new V3(0, 0, 1), AXIS_Y = new V3(0, 1, 0);
 
-export function createRiderView(scene) {
-  const rig = new THREE.Group(); rig.matrixAutoUpdate = false; rig.visible = false; scene.add(rig);
-  let bike = null, avatar = null, want = '', crank = 0, lastDist = null, yaw = 0;
+function nameTag(text) {
+  const c = document.createElement('canvas'); c.width = 384; c.height = 80;
+  const g = c.getContext('2d'); g.font = '600 40px -apple-system, Helvetica, Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  const w = Math.min(372, g.measureText(text).width + 36);
+  g.fillStyle = 'rgba(12,10,8,0.55)'; g.beginPath(); g.roundRect((384 - w) / 2, 10, w, 60, 30); g.fill();
+  g.fillStyle = '#fff'; g.fillText(text, 192, 42, 340);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, fog: false }));
+  s.scale.set(1.5, 0.3125, 1); s.position.set(0, 2.2, 0); s.renderOrder = 5;
+  return s;
+}
+
+// label: a name to float above the rider (other riders have one; you don't)
+export function createRiderView(scene, { label = '' } = {}) {
+  const rig = new THREE.Group(), pos = new V3(); rig.matrixAutoUpdate = false; rig.visible = false; scene.add(rig);
+  let bike = null, avatar = null, tag = null, want = '', crank = 0, lastDist = null, yaw = 0;
 
   // (re)build for a character and kit; the model loads in the background
   async function dress({ character, kit }) {
@@ -17,6 +30,7 @@ export function createRiderView(scene) {
     rig.clear();
     bike = createBike({ frame: colours.bike }); avatar = createAvatar(gltf, { kit: colours });
     rig.add(bike.object, avatar.object);
+    if (label) { tag = nameTag(label); rig.add(tag); }
   }
 
   /* Place the rig. pose: the road at the rider (p, t, r from the course line). rider: the simulation's rider.
@@ -40,5 +54,7 @@ export function createRiderView(scene) {
     q.multiply(new THREE.Quaternion().setFromAxisAngle(AXIS_Y, yaw)).multiply(new THREE.Quaternion().setFromAxisAngle(AXIS_Z, lean));
     rig.matrix.compose(pos, q, rig.scale); rig.updateMatrixWorld(true);
   }
-  return { rig, dress, update, get ready() { return !!avatar; } };
+  // name tags are for riders a little way off: hidden right next to the camera and far away
+  const showTag = distance => { if (tag) tag.visible = distance > 5 && distance < 70; };
+  return { rig, dress, update, showTag, pos, get ready() { return !!avatar; } };
 }

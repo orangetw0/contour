@@ -1,6 +1,7 @@
 /* Power to speed. No DOM, no rendering; safe to run anywhere.
    body: { mass (kg, rider + bike), cda (m², rider and bike together), crr }
-   env:  { altitude (m), vLimit (m/s, the fastest the rider will take the road here; see course/speedLimit.js) }
+   env:  { altitude (m), vLimit (m/s, the fastest the rider will take the road here; see course/speedLimit.js),
+           drag (share of air drag left when sheltered behind other riders, 1 in clean air; see sim/draft.js) }
    Two sets of rules:
    REAL   – gravity in full both ways, rolling resistance, air drag thinning with altitude, drivetrain loss,
             and a rider who brakes for bends instead of at a fixed speed.
@@ -21,7 +22,7 @@ export const REAL = Object.freeze({
   accel(v, power, slope, body, env = {}) {
     const cos = Math.sqrt(Math.max(0, 1 - slope * slope));
     const drive = Math.min(power * this.drivetrain / Math.max(v, 0.3), body.mass * this.maxAccel);
-    const resist = body.mass * G * (slope + body.crr * cos) + 0.5 * airDensity(env.altitude) * body.cda * v * v;
+    const resist = body.mass * G * (slope + body.crr * cos) + 0.5 * airDensity(env.altitude) * body.cda * (env.drag ?? 1) * v * v;
     return (drive - resist) / (body.mass + this.wheelKg);
   },
 });

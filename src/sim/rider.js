@@ -14,6 +14,7 @@ export function createRider({ s = 0, v = 6, power = 220, lane = -1.75, body }) {
     steer: 0,          // -1 (left) to 1 (right), from the keys or a steering device
     slide: 0,          // sideways speed, m/s, for the picture
     uturn: 0,          // 1 just after a U-turn, easing to 0 as the rider comes round
+    drag: 1,           // share of air drag left when drafting (1: clean air)
     grade: 0,          // % gradient, eased, as shown and as sent to the trainer
     altitude: 0,       // metres
     hr: null,          // beats per minute, from a heart-rate monitor
@@ -33,7 +34,7 @@ export function stepRider(r, line, dt, opts = {}) {
   line.at(r.s, sc);
   const slope = sc.t.y * r.dir, v = r.v;
   r.altitude = sc.p.y;
-  r.v = stepSpeed(v, r.power, slope, r.body, dt, opts.model || REAL, { altitude: sc.p.y, vLimit: opts.limits ? opts.limits.at(r.s, r.dir) : Infinity });
+  r.v = stepSpeed(v, r.power, slope, r.body, dt, opts.model || REAL, { altitude: sc.p.y, drag: r.drag, vLimit: opts.limits ? opts.limits.at(r.s, r.dir) : Infinity });
   if (opts.cruise != null) r.v = v + (opts.cruise - v) * Math.min(1, dt);
   r.s = (((r.s + r.dir * r.v * dt) % line.LEN) + line.LEN) % line.LEN;
   steerRider(r, dt);

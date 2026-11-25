@@ -22,6 +22,9 @@ import { initAudio, updateAudio } from './app/audio.js';
 import { initHeart } from './app/heart.js';
 import { initSettings } from './app/settings.js';
 import { initSave } from './app/save.js';
+import { initCompany } from './app/company.js';
+import { createBots, stepBot } from './sim/bots.js';
+import { draftOf } from './sim/draft.js';
 
 const V3 = THREE.Vector3, { LEN, at } = line;
 
@@ -36,8 +39,19 @@ const cruise = SCENERY !== null ? 5 : null;                    // scenery mode: 
 const HZ = 60, power3s = createRolling(3, HZ), here = mkPose();
 const recorder = createRecorder({ startUnix: Math.floor(Date.now() / 1000), geo: real ? real.geo : null });
 let paused = false;                                            // P: stop the clock, the rider and the recording
+// other riders: ?bots=N sets how many (0 for none); scenery mode rides alone
+const botCount = SCENERY !== null ? 0 : Math.max(0, Math.min(40, query.get('bots') === null ? 14 : +query.get('bots') || 0));
+const bots = botCount ? createBots(line, { humans: botCount, near: START }) : [];
+const everyone = [rider, ...bots], shelter = { drag: 1, from: null, gap: Infinity }, botShelter = { drag: 1, from: null, gap: Infinity };
+let company = null;
 const loop = createLoop(h => {
   if (paused) return;
+  if (bots.length) {
+    rider.drag = draftOf(rider, everyone, LEN, shelter).drag;
+    for (const b of bots) { draftOf(b, everyone, LEN, botShelter); b.drag = botShelter.drag; b.draftFrom = botShelter.from; }
+    for (const b of bots) stepBot(b, everyone, line, h, { model, limits });
+    if (company) company.talk(h);
+  }
   stepRider(rider, line, h, { model, limits, cruise });
   power3s.push(rider.target);
   if (SCENERY === null) recorder.step(rider, at(rider.s, here).p, h);
@@ -103,13 +117,17 @@ initHeart({ rider });
 initSettings({ profile, onChange: p => { profile = p; unit = units(p.units); rider.body = bodyOf(p); showUnits(); riderView.dress(p); } });
 riderView.dress(profile);
 initSave({ recorder, course: COURSE });
+rider.name = 'you';
+if (bots.length) company = initCompany({ scene, camera, line, bots, rider, unit: () => unit,
+  onJoin: p => { Object.assign(rider, { dir: p.dir, s: (((p.s - p.dir * 4) % LEN) + LEN) % LEN, lane: p.lane, v: p.v, uturn: 0 }); } });
+else $('pacerbtn').remove();
 initVoice({ trainer, setWeather, skip, setClean, xmas: XMAS, lab: LAB });
 initAudio();
 
 // for checking from the console: window.ride.s, .goNear(x, z), .weather(name), .built, .recorder
 window.ride = rider;
 Object.assign(rider, {
-  haze: hazeCol, built: st0, recorder, pause: on => setPaused(on), weather: (n, i) => setWeather(n, i),
+  haze: hazeCol, built: st0, recorder, bots, pause: on => setPaused(on), weather: (n, i) => setWeather(n, i),
   goNear: (x, z) => { const n = line.nearestS(x, z); rider.s = Math.max(0, n.s - 60); return Math.round(n.gap); },
 });
 
@@ -166,6 +184,7 @@ function frame() {
   rig.visible = !third && SCENERY !== 'nobars';                 // the handlebars belong to the saddle view
   riderView.rig.visible = third;
   if (third) riderView.update(rider, pose, lean * 1.5, paused ? 0 : dt);
+  if (company) company.draw(paused ? 0 : dt);
 
   stepWeather(dt);
   rainU.uVel.value.copy(pose.t).multiplyScalar(v * d);
@@ -195,6 +214,7 @@ function frame() {
     $('h-wk').textContent = wattsPerKg(power3s.avg, rider.body.riderKg).toFixed(1);
     $('h-hr-box').hidden = rider.hr == null; if (rider.hr != null) $('h-hr').textContent = rider.hr.toFixed(0);
     $('h-cd-box').hidden = rider.cadence == null; if (rider.cadence != null) $('h-cd').textContent = rider.cadence.toFixed(0);
+    $('h-dr-box').hidden = rider.drag > 0.97; $('h-dr').textContent = Math.round((1 - rider.drag) * 100);
     $('h-sp').textContent = unit.speed(v).toFixed(1);
     $('h-gr').textContent = (rider.grade >= 0 ? '+' : '') + rider.grade.toFixed(1);
     $('h-di').textContent = unit.distance(rider.dist).toFixed(2);

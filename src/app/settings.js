@@ -1,5 +1,5 @@
 /* The Rider panel: weight, bike and units. Changes apply straight away and are kept in this browser. */
-import { $, placePanel } from '../util/dom.js';
+import { $, panelButton } from '../util/dom.js';
 import { BIKES, cleanProfile, saveProfile } from '../sim/profile.js';
 import { units } from '../sim/units.js';
 import { CHARACTERS, KITS } from '../riders/avatar.js';
@@ -23,7 +23,6 @@ export function initSettings({ profile, onChange }) {
     $('p-kit').onchange = e => set({ kit: e.target.value });
     $('p-units').onchange = e => set({ units: e.target.value });
   };
-  btn.onclick = () => { $('log').hidden = true; $('logbtn').classList.remove('on'); box.hidden = !box.hidden; btn.classList.toggle('on', !box.hidden); if (!box.hidden) { placePanel(box); draw(); } };
-  box.addEventListener('click', e => e.stopPropagation());
+  panelButton(btn, box, draw);
   box.addEventListener('keydown', e => e.stopPropagation());       // typing a weight must not steer the ride or change the weather
 }

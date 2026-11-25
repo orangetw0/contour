@@ -39,3 +39,10 @@ body.clean { cursor: none; }
 .panel .note { margin-top: 10px; font-size: 11px; line-height: 1.4; opacity: .65; }
 #hud div[hidden] { display: none; }
 #hud div { min-width: 62px; }
+#chat { position: fixed; right: 16px; bottom: 44px; width: 300px; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; pointer-events: none; font-size: 13px; text-shadow: 0 1px 6px rgba(0,0,0,.8); }
+#chat div { background: rgba(20,16,12,.5); border-radius: 12px; padding: 5px 10px; max-width: 100%; transition: opacity 1.2s; }
+#chat div b { font-weight: 600; opacity: .8; margin-right: 6px; }
+#chat div.old { opacity: 0; }
+body.clean #chat { display: none; }
+.panel .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid rgba(255,255,255,.14); }
+.panel .row button { margin: 0; }
