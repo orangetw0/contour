@@ -5,7 +5,7 @@ import { $, query } from './util/dom.js';
 import { smooth } from './util/noise.js';
 import { COURSE, COURSE_NAMES, XMAS, SCENERY, START, real, line, mkPose } from './course/index.js';
 import { scene, camera, composer, sun, sunDir, hazeCol, st0, uTime, uMeadow, rainU, wx, setWeather, stepWeather,
-  chunks, rays, lens, rig, drawHeadUnit, LAB } from './world/world.js';
+  chunks, rays, lens, rig, drawHeadUnit, LAB } from './world/index.js';
 import { createRider, stepRider } from './sim/rider.js';
 import { createLoop } from './sim/loop.js';
 import { loadProfile, bodyOf } from './sim/profile.js';
