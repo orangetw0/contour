@@ -21,7 +21,7 @@ export function createBots(line, { humans = 14, pacers = true, near = 0, rand = 
     if (dir < 0) r.lane = r.bot.home;
     bots.push(r); return r;
   };
-  if (pacers) PACERS.forEach((p, i) => add({ ...p, pacer: true, bike: 'aero', character: i % 2 ? 'female' : 'male', kg: i % 2 ? 62 : 74, heightM: i % 2 ? 1.68 : 1.8, skin: SKIN_KEYS[i % 4] }, (near + 60 + i * line.LEN / PACERS.length) % line.LEN));
+  if (pacers) PACERS.forEach((p, i) => add({ ...p, pacer: true, bike: 'aero', character: i % 2 ? 'female' : 'male', kg: i % 2 ? 62 : 74, heightM: i % 2 ? 1.68 : 1.8, skin: SKIN_KEYS[i % 4] }, line.wrap(near + 60 + i * line.LEN / (PACERS.length + (line.closed ? 0 : 1)))));
   const used = new Set();
   for (let i = 0; i < humans; i++) {
     let name; do { name = pick(NAMES) + ' ' + String.fromCharCode(65 + Math.floor(rand() * 26)) + '.'; } while (used.has(name)); used.add(name);
@@ -30,15 +30,15 @@ export function createBots(line, { humans = 14, pacers = true, near = 0, rand = 
     const bmi = 19.5 + rand() * rand() * 11, kg = bmi * heightM * heightM;
     // most start within a few hundred metres of the player; a few ride the course the other way
     const s = i < humans * 0.6 ? near + (rand() - 0.35) * 500 : rand() * line.LEN;
-    add({ name, kg, heightM, skin: pick(SKIN_KEYS), wkg: Math.max(1.3, 1.7 + rand() * 2.2 - Math.max(0, bmi - 25) * 0.12), character, kit: pick(KITS), bike: pick(BIKE_KEYS) }, ((s % line.LEN) + line.LEN) % line.LEN, rand() < 0.2 ? -1 : 1);
+    add({ name, kg, heightM, skin: pick(SKIN_KEYS), wkg: Math.max(1.3, 1.7 + rand() * 2.2 - Math.max(0, bmi - 25) * 0.12), character, kit: pick(KITS), bike: pick(BIKE_KEYS) }, line.wrap(s), rand() < 0.2 ? -1 : 1);
   }
   return bots;
 }
 
 // nearest rider ahead of `me` going my way, within `reach` metres
-function ahead(me, riders, LEN, reach) {
+function ahead(me, riders, course, reach) {
   let best = null, bg = reach;
-  for (const o of riders) { if (o === me || o.dir !== me.dir) continue; const g = gapAhead(me, o, LEN); if (g > 0.2 && g < bg) { bg = g; best = o; } }
+  for (const o of riders) { if (o === me || o.dir !== me.dir) continue; const g = gapAhead(me, o, course); if (g > 0.2 && g < bg) { bg = g; best = o; } }
   return best ? { rider: best, gap: bg } : null;
 }
 
@@ -56,7 +56,7 @@ export function stepBot(r, riders, line, dt, opts) {
     else if ((b.nextSurge -= dt) <= 0) { b.surge = 7 + (b.phase % 1) * 8; b.nextSurge = 60 + ((b.clock * 7.3) % 150); }
   }
   // the wheel in front: sit on it, or pull out and pass if clearly faster
-  const a = ahead(r, riders, line.LEN, 9);
+  const a = ahead(r, riders, line, 9);
   let want = b.home;
   if (a) {
     const closing = r.v - a.rider.v, side = Math.abs(a.rider.lane - r.lane);

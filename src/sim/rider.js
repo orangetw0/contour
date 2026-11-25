@@ -36,7 +36,9 @@ export function stepRider(r, line, dt, opts = {}) {
   r.altitude = sc.p.y;
   r.v = stepSpeed(v, r.power, slope, r.body, dt, opts.model || REAL, { altitude: sc.p.y, drag: r.drag, vLimit: opts.limits ? opts.limits.at(r.s, r.dir) : Infinity });
   if (opts.cruise != null) r.v = v + (opts.cruise - v) * Math.min(1, dt);
-  r.s = (((r.s + r.dir * r.v * dt) % line.LEN) + line.LEN) % line.LEN;
+  const next = r.s + r.dir * r.v * dt;
+  if (line.closed === false && (next <= 0 || next >= line.LEN)) { r.s = line.wrap(next); r.uturn = 0; uTurn(r); }      // the end of the road: turn round
+  else r.s = line.wrap ? line.wrap(next) : ((next % line.LEN) + line.LEN) % line.LEN;
   steerRider(r, dt);
   r.dist += r.v * dt;
   r.time += dt;

@@ -10,7 +10,7 @@ import './verge.js';
 
 /* ---------- 19th-century touches (real courses): sheep on the hill, hay stooks in the vale ---------- */
 const stamps = [];       // patches where the meadow is grazed short or cut to stubble
-if (real) {
+if (real && real.pastoral) {
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new V3(0, 1, 0), sc = new V3(), ps = new V3(), col = new THREE.Color();
   const open = (x, z) => Math.abs(x) < TS / 2 - 60 && Math.abs(z) < TS / 2 - 60 && !real.wood(x, z);
   const slopeAt = (x, z) => Math.hypot(demH(x + 10, z) - demH(x - 10, z), demH(x, z + 10) - demH(x, z - 10)) / 20;

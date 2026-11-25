@@ -46,3 +46,12 @@ body.clean { cursor: none; }
 body.clean #chat { display: none; }
 .panel .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid rgba(255,255,255,.14); }
 .panel .row button { margin: 0; }
+.panel.wide { width: 380px; }
+.panel .map { width: 100%; height: auto; display: block; margin-bottom: 8px; background: rgba(120,160,200,.16); border-radius: 8px; }
+.panel .map path { fill: rgba(255,255,255,.34); stroke: none; }
+.panel .map circle { fill: #ffcf8f; stroke: #2a1c0c; stroke-width: .6; cursor: pointer; }
+.panel .map circle.here { fill: #fff; }
+.panel .row b { font-weight: 600; }
+.panel .row > span:last-child { white-space: nowrap; }
+.panel label.file { display: block; margin-top: 12px; border: 1px dashed rgba(255,255,255,.45); border-radius: 10px; padding: 9px 12px; cursor: pointer; text-align: center; }
+.panel label.file input { display: none; }

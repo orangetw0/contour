@@ -2,12 +2,12 @@
 import { $, panelButton } from '../util/dom.js';
 import { COURSE_NAMES } from '../course/index.js';
 
-const KEY = 'contour-log', MIN = 100;         // rides under 100 m are not kept
+const KEY = 'contour-log', MIN = 100, esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));         // rides under 100 m are not kept
 
 // unit: a function returning the current display units, since they can change mid-ride
-export function initLog({ rider, course, unit }) {
+export function initLog({ rider, course, name, unit }) {
   const load = () => { try { const a = JSON.parse(localStorage.getItem(KEY)); return Array.isArray(a) ? a : []; } catch { return []; } };
-  const ride = { t: new Date().toISOString(), c: course, m: 0, s: 0 };
+  const ride = { t: new Date().toISOString(), c: course, n: name, m: 0, s: 0 };
   let ok = true;
   const save = () => {
     ride.s = rider.time; ride.m = Math.round(rider.dist);     // time comes from the simulation, so it counts while the tab is hidden too
@@ -22,7 +22,7 @@ export function initLog({ rider, course, unit }) {
     const u = unit().distanceLabel;
     const all = load().filter(r => r.t !== ride.t); if (rider.dist >= MIN) all.push({ ...ride, m: Math.round(rider.dist) });
     const today = new Date().toDateString(), sum = f => all.filter(f).reduce((a, r) => a + r.m, 0);
-    const rows = all.slice(-10).reverse().map(r => `<tr><td>${day(r.t)}</td><td class="muted">${COURSE_NAMES[r.c] || 'Valley'}</td><td class="muted">${mins(r.s)}</td><td>${far(r.m)} ${u}</td></tr>`).join('');
+    const rows = all.slice(-10).reverse().map(r => `<tr><td>${day(r.t)}</td><td class="muted">${esc(r.n || COURSE_NAMES[r.c] || 'Valley')}</td><td class="muted">${mins(r.s)}</td><td>${far(r.m)} ${u}</td></tr>`).join('');
     box.innerHTML = `<h3>Ride log</h3><div class="tot"><div><b>${far(sum(r => new Date(r.t).toDateString() === today))}</b><span>${u} today</span></div>` +
       `<div><b>${far(sum(() => true))}</b><span>${u} in total</span></div><div><b>${all.length}</b><span>rides</span></div></div>` +
       (rows ? `<table>${rows}</table>` : `<div class="muted">Rides appear here after the first 100 m.</div>`) +

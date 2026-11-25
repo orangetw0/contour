@@ -51,7 +51,7 @@ tGeo.computeVertexNormals();
   const gA = new THREE.Color(0.8, 0.95, 0.7), gB = new THREE.Color(1.3, 1.15, 0.75), white = new THREE.Color(1, 1, 1), tMix = new Float32Array(TW * TW * 2);
   for (let k = 0; k < TW * TW; k++) {
     const x = tPos[k * 3], h = tPos[k * 3 + 1], z = tPos[k * 3 + 2], ny = nrm[k * 3 + 1];
-    const rk = smooth(0.86, 0.66, ny), sn = XMAS ? smooth(0.42, 0.72, ny) * 1.25 : smooth(330, 430, h) * smooth(0.5, 0.75, ny);
+    const rk = smooth(0.86, 0.66, ny), sn = XMAS ? smooth(0.42, 0.72, ny) * 1.25 : smooth(real ? 2500 : 330, real ? 2800 : 430, h) * smooth(0.5, 0.75, ny);      // the valley is a small-scale Alps; real roads get snow only where it lies in summer
     col.copy(gA).lerp(gB, smooth(0.3, 0.7, fbm(x / 45, z / 45, 3))).lerp(white, rk);   // tint the grass, leave rock alone
     if (XMAS) { const d = 0.9 + 0.2 * fbm(x / 30, z / 30, 3); col.setRGB(d, d, d * 1.04); }          // drifts: faint light and shade across the snow
     tCol.set([col.r, col.g, col.b], k * 3); tMix.set([rk, sn], k * 2);

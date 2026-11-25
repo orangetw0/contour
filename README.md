@@ -6,7 +6,8 @@ rider profiles, other riders, real routes and ride export.
 
 ## What's in it
 
-- Two courses: an invented mountain valley, and a real 11.9 km Leckhampton loop built from Environment Agency lidar, dressed as the 19th-century hill (sheep, hay stooks, quarry smoke). `?course=leckhampton` opens the loop.
+- Routes: an invented mountain valley; a real 11.9 km Leckhampton loop built from Environment Agency lidar, dressed as the 19th-century hill (sheep, hay stooks, quarry smoke); and your own. The Routes panel shows them on a world map.
+- Your own routes: add a GPX file from a ride you recorded or a route you planned and ride its road and its gradients, as a loop or an out-and-back climb (riders turn round at the ends). The scenery around an imported road is invented to fit it, up to 11 km across. Saved rides carry the route's real GPS.
 - Four looks: Golden, Overcast, Rain and Mist. Buttons at the top, keys 1–4, or by voice. `?theme=christmas` gives the valley under snow.
 - Your rider on screen: a rigged male or female character in cycling kit on a road bike, pedalling at your cadence, seen from behind (the V key switches to the view from the saddle). The body follows your height and weight, on a frame sized to fit. Riders wear a fitted helmet, wrap-round glasses, short-finger gloves, road shoes and one of eight original kit designs, and hold the brake hoods. Two original bike designs: a slim-tubed climbing bike and a deep-section aero bike, chosen by your bike type. Choose the rider, kit and skin tone in the Rider panel.
 - Steering: hold ← or → (or A and D) to move across your lane. U turns round and rides back the other way. P pauses.
@@ -37,11 +38,11 @@ npm run build      # static site in dist/
 - `index.html` – the page's markup.
 - `src/main.js` – entry point: wires the simulation to the world and the controls, and draws each frame.
 - `src/sim/` – the simulation, with no drawing in it: `physics.js` (power to speed), `rider.js` (one rider's state), `profile.js` (weight and bike types), `loop.js` (fixed-timestep clock), `metrics.js` (rolling power, w/kg), `recorder.js` (one sample a second), `draft.js` (shelter behind other riders), `bots.js` (other riders and pacers), `chatter.js` (what they say), `units.js`.
-- `src/course/` – the road line (`line.js`), how fast each bend can be taken (`speedLimit.js`) and course loading (`index.js`).
+- `src/course/` – the road line, loop or open-ended (`line.js`), how fast each bend can be taken (`speedLimit.js`), reading GPX (`gpx.js`), turning a track into a course (`route.js`), inventing ground round it (`terrainGen.js`), the list of routes (`library.js`) and course loading (`index.js`).
 - `src/devices/` – Bluetooth message formats: trainer (`ftms.js`), heart rate and cadence (`sensors.js`).
 - `src/export/fit.js` – writes a ride as a FIT file.
 - `src/riders/` – the rider you see: the bike (`bike.js`), the character and riding position (`avatar.js`), kit designs (`kit.js`), helmet, glasses and shoes (`gear.js`), body shape from height and weight (`body.js`), the posing maths (`ik.js`) and placing them on the road (`riderView.js`). `tools/avatar-preview.html` shows riders on their own while the dev server runs.
-- `src/app/` – trainer and heart-rate connections, Rider panel, other riders and pacers (`company.js`), ride log, save, voice and sound.
+- `src/app/` – trainer and heart-rate connections, Rider panel, Routes panel and world map (`routes.js`), other riders and pacers (`company.js`), ride log, save, voice and sound.
 - `src/world/` – everything you see, one file per part (terrain, road, pines, weather…). Each imports the one before it, because the scenery is built from one seeded random sequence.
 - `public/assets/` – textures and course data.
 - `tools/` – scripts that build the Leckhampton course data.
@@ -54,6 +55,7 @@ npm run build      # static site in dist/
 - Textures: Poly Haven (CC0).
 - Terrain: Environment Agency LiDAR Composite DTM, Open Government Licence v3.0.
 - Roads, woodland and field boundaries: © OpenStreetMap contributors, ODbL.
+- World map outline: Natural Earth, via world-atlas (public domain data).
 - 3D engine: Three.js (MIT).
 
 ## Licence

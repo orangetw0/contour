@@ -1,4 +1,4 @@
-import { LEN, N, P, R, XMAS } from '../course/index.js';
+import { LEN, N, P, R, XMAS, closed } from '../course/index.js';
 import * as THREE from 'three';
 import { canvas2d } from '../util/dom.js';
 import { rnd } from '../util/noise.js';
@@ -10,12 +10,13 @@ import './terrain.js';
 /* ---------- road ---------- */
 const TILES = Math.round(LEN / 12);
 function strip(offA, dyA, offB, dyB, uA, uB, vTiles) {
-  const pos = new Float32Array((N + 1) * 6), uv = new Float32Array((N + 1) * 4), idx = new Uint32Array(N * 6);
-  for (let i = 0; i <= N; i++) {
+  const rows = closed ? N + 1 : N;                              // a loop's ribbon joins back onto its start; an open road's does not
+  const pos = new Float32Array(rows * 6), uv = new Float32Array(rows * 4), idx = new Uint32Array((rows - 1) * 6);
+  for (let i = 0; i < rows; i++) {
     const j = i % N, p = P[j], r = R[j];
     pos.set([p.x + r.x * offA, p.y + dyA, p.z + r.z * offA, p.x + r.x * offB, p.y + dyB, p.z + r.z * offB], i * 6);
     uv.set([uA, i / N * vTiles, uB, i / N * vTiles], i * 4);
-    if (i < N) idx.set([2 * i, 2 * i + 1, 2 * i + 2, 2 * i + 1, 2 * i + 3, 2 * i + 2], i * 6);
+    if (i < rows - 1) idx.set([2 * i, 2 * i + 1, 2 * i + 2, 2 * i + 1, 2 * i + 3, 2 * i + 2], i * 6);
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));

@@ -2,7 +2,6 @@
 import { $, panelButton } from '../util/dom.js';
 import { createRiderView } from '../riders/riderView.js';
 import { createChatter } from '../sim/chatter.js';
-import { gapAhead } from '../sim/draft.js';
 import { mkPose } from '../course/line.js';
 
 const SEE = 140;       // metres: riders further away than this are not drawn
@@ -10,7 +9,7 @@ const SEE = 140;       // metres: riders further away than this are not drawn
 export function initCompany({ scene, camera, line, bots, rider, unit, onJoin }) {
   const views = bots.map(b => { const v = createRiderView(scene, { label: b.name }); v.dress(b); return v; });
   const poses = bots.map(() => ({ here: mkPose(), next: mkPose(), lean: 0 }));
-  const around = (a, b) => { const g = gapAhead({ s: a.s, dir: 1 }, b, line.LEN); return Math.min(g, line.LEN - g); };
+  const around = (a, b) => line.apart(a.s, b.s);
 
   // chat: a few lines at the bottom right, fading after a while
   const feed = $('chat'), chatter = createChatter();

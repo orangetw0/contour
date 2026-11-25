@@ -3,7 +3,8 @@
 import * as THREE from 'three';
 import { $, query } from './util/dom.js';
 import { smooth } from './util/noise.js';
-import { COURSE, COURSE_NAMES, XMAS, SCENERY, START, real, line, mkPose } from './course/index.js';
+import { COURSE, COURSE_NAME, XMAS, SCENERY, START, real, line, mkPose } from './course/index.js';
+import { initRoutes } from './app/routes.js';
 import { scene, camera, composer, sun, sunDir, hazeCol, st0, uTime, uMeadow, rainU, wx, setWeather, stepWeather,
   chunks, rays, lens, rig, drawHeadUnit, LAB } from './world/index.js';
 import { createRider, stepRider, uTurn } from './sim/rider.js';
@@ -26,7 +27,7 @@ import { initCompany } from './app/company.js';
 import { createBots, stepBot } from './sim/bots.js';
 import { draftOf } from './sim/draft.js';
 
-const V3 = THREE.Vector3, { LEN, at } = line;
+const V3 = THREE.Vector3, { at } = line;
 
 /* ---------- rider and simulation clock ---------- */
 let profile = loadProfile(localStorage);
@@ -47,8 +48,8 @@ let company = null;
 const loop = createLoop(h => {
   if (paused) return;
   if (bots.length) {
-    rider.drag = draftOf(rider, everyone, LEN, shelter).drag;
-    for (const b of bots) { draftOf(b, everyone, LEN, botShelter); b.drag = botShelter.drag; b.draftFrom = botShelter.from; }
+    rider.drag = draftOf(rider, everyone, line, shelter).drag;
+    for (const b of bots) { draftOf(b, everyone, line, botShelter); b.drag = botShelter.drag; b.draftFrom = botShelter.from; }
     for (const b of bots) stepBot(b, everyone, line, h, { model, limits });
     if (company) company.talk(h);
   }
@@ -63,7 +64,7 @@ try {
 } catch (err) { setInterval(() => { if (document.hidden) loop.advance(performance.now()); }, 250); }
 
 /* ---------- controls: keys, slider, buttons ---------- */
-const skip = m => { rider.s = (((rider.s + rider.dir * m) % LEN) + LEN) % LEN; };
+const skip = m => { rider.s = line.wrap(rider.s + rider.dir * m); };
 const setTarget = w => { rider.target = Math.min(900, Math.max(0, w)); $('pwr').value = rider.target; };
 addEventListener('keydown', e => {
   if (e.key === 'ArrowUp') setTarget(rider.target + 10);
@@ -99,8 +100,7 @@ setView(view);
 $('view').addEventListener('click', () => setView(view === 'third' ? 'first' : 'third'));
 $('pwr').addEventListener('input', e => { rider.target = +e.target.value; });
 $('skip').addEventListener('click', () => skip(250));
-$('course').textContent = 'Course: ' + COURSE_NAMES[COURSE];
-$('course').addEventListener('click', () => { location.search = real ? '' : '?course=leckhampton'; });
+$('course').textContent = 'Route: ' + COURSE_NAME;
 const showUnits = () => { $('h-sp-u').textContent = unit.speedLabel; $('h-di-u').textContent = unit.distanceLabel; };
 showUnits();
 
@@ -112,14 +112,15 @@ addEventListener('click', () => { if (isClean()) setClean(false); });
 addEventListener('keydown', e => { if ((e.key === 'h' || e.key === 'H') && !e.metaKey && !e.ctrlKey && !e.altKey) setClean(!isClean()); });
 
 const trainer = initTrainer({ rider, setTarget });
-initLog({ rider, course: COURSE, unit: () => unit });
+initLog({ rider, course: COURSE, name: COURSE_NAME, unit: () => unit });
+initRoutes({ current: COURSE, unit: () => unit });
 initHeart({ rider });
 initSettings({ profile, onChange: p => { profile = p; unit = units(p.units); rider.body = bodyOf(p); showUnits(); riderView.dress(lookOf(p)); } });
 riderView.dress(lookOf(profile));
-initSave({ recorder, course: COURSE });
+initSave({ recorder, course: COURSE_NAME.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'ride' });
 rider.name = 'you';
 if (bots.length) company = initCompany({ scene, camera, line, bots, rider, unit: () => unit,
-  onJoin: p => { Object.assign(rider, { dir: p.dir, s: (((p.s - p.dir * 4) % LEN) + LEN) % LEN, lane: p.lane, v: p.v, uturn: 0 }); } });
+  onJoin: p => { Object.assign(rider, { dir: p.dir, s: line.wrap(p.s - p.dir * 4), lane: p.lane, v: p.v, uturn: 0 }); } });
 else $('pacerbtn').remove();
 initVoice({ trainer, setWeather, skip, setClean, xmas: XMAS, lab: LAB });
 initAudio();
