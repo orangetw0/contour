@@ -8,21 +8,37 @@ import { scene, camera, composer, sun, sunDir, hazeCol, st0, uTime, uMeadow, rai
   chunks, rays, lens, rig, drawHeadUnit, LAB } from './world/index.js';
 import { createRider, stepRider } from './sim/rider.js';
 import { createLoop } from './sim/loop.js';
+import { MODELS, REAL } from './sim/physics.js';
+import { createRolling, wattsPerKg } from './sim/metrics.js';
+import { createRecorder } from './sim/recorder.js';
+import { buildSpeedLimit } from './course/speedLimit.js';
 import { loadProfile, bodyOf } from './sim/profile.js';
 import { units } from './sim/units.js';
 import { initTrainer } from './app/trainer.js';
 import { initLog } from './app/log.js';
 import { initVoice } from './app/voice.js';
 import { initAudio, updateAudio } from './app/audio.js';
+import { initHeart } from './app/heart.js';
+import { initSettings } from './app/settings.js';
+import { initSave } from './app/save.js';
 
 const V3 = THREE.Vector3, { LEN, at } = line;
 
 /* ---------- rider and simulation clock ---------- */
-const profile = loadProfile(localStorage);
-const unit = units(query.get('units') || profile.units);
-const rider = createRider({ s: START, body: bodyOf(profile) });
+let profile = loadProfile(localStorage);
+if (query.get('units')) profile = { ...profile, units: query.get('units') === 'imperial' ? 'imperial' : 'metric' };
+let unit = units(profile.units);
+const model = MODELS[query.get('physics')] || REAL;                // ?physics=legacy: the original ride's rules
+const limits = buildSpeedLimit(line, { decel: REAL.brakeDecel, max: REAL.maxSpeed });
+const rider = createRider({ s: START, v: model === REAL ? 0 : 6, body: bodyOf(profile) });
 const cruise = SCENERY !== null ? 5 : null;                    // scenery mode: a steady 18 km/h, whatever the gradient
-const loop = createLoop(h => stepRider(rider, line, h, { cruise }));
+const HZ = 60, power3s = createRolling(3, HZ), here = mkPose();
+const recorder = createRecorder({ startUnix: Math.floor(Date.now() / 1000), geo: real ? real.geo : null });
+const loop = createLoop(h => {
+  stepRider(rider, line, h, { model, limits, cruise });
+  power3s.push(rider.target);
+  if (SCENERY === null) recorder.step(rider, at(rider.s, here).p, h);
+}, { hz: HZ });
 // Browsers stop drawing a hidden tab, and slow its timers. A worker's timer keeps going, so the ride does too.
 try {
   const ticker = new Worker(new URL('./sim/ticker.worker.js', import.meta.url), { type: 'module' });
@@ -42,7 +58,8 @@ $('pwr').addEventListener('input', e => { rider.target = +e.target.value; });
 $('skip').addEventListener('click', () => skip(250));
 $('course').textContent = 'Course: ' + COURSE_NAMES[COURSE];
 $('course').addEventListener('click', () => { location.search = real ? '' : '?course=leckhampton'; });
-$('h-sp-u').textContent = unit.speedLabel; $('h-di-u').textContent = unit.distanceLabel;
+const showUnits = () => { $('h-sp-u').textContent = unit.speedLabel; $('h-di-u').textContent = unit.distanceLabel; };
+showUnits();
 
 // hide everything on screen, leaving only the ride: the button, the H key, or by voice. H, a click, or "show" brings it back.
 const setClean = hide => document.body.classList.toggle('clean', hide);
@@ -52,21 +69,24 @@ addEventListener('click', () => { if (isClean()) setClean(false); });
 addEventListener('keydown', e => { if ((e.key === 'h' || e.key === 'H') && !e.metaKey && !e.ctrlKey && !e.altKey) setClean(!isClean()); });
 
 const trainer = initTrainer({ rider, setTarget });
-initLog({ rider, course: COURSE, unit });
+initLog({ rider, course: COURSE, unit: () => unit });
+initHeart({ rider });
+initSettings({ profile, onChange: p => { profile = p; unit = units(p.units); rider.body = bodyOf(p); showUnits(); } });
+initSave({ recorder, course: COURSE });
 initVoice({ trainer, setWeather, skip, setClean, xmas: XMAS, lab: LAB });
 initAudio();
 
-// for checking from the console: window.ride.s, .goNear(x, z), .weather(name), .built
+// for checking from the console: window.ride.s, .goNear(x, z), .weather(name), .built, .recorder
 window.ride = rider;
 Object.assign(rider, {
-  haze: hazeCol, built: st0, weather: (n, i) => setWeather(n, i),
+  haze: hazeCol, built: st0, recorder, weather: (n, i) => setWeather(n, i),
   goNear: (x, z) => { const n = line.nearestS(x, z); rider.s = Math.max(0, n.s - 60); return Math.round(n.gap); },
 });
 
 /* ---------- drawing ---------- */
 const clock = new THREE.Clock();
 const pose = mkPose(), ahead = mkPose(), probe = mkPose(), look = new V3(), sunNdc = new V3(), fwd = new V3();
-let lean = 0, phase = 0, huT = 0, first = true;
+let lean = 0, phase = 0, huT = -1e9, first = true;
 // scenery mode's weather, in order, and how many seconds each one stays
 const SCENE_PLAN = XMAS ? [['snow', 280], ['mist', 100], ['snow', 180], ['golden', 95]] : [['golden', 200], ['mist', 110], ['rain', 130], ['overcast', 70], ['golden', 90]];
 let scene_t = 0, scene_i = 0;
@@ -75,7 +95,8 @@ if (SCENERY !== null) { setClean(true); rider.target = rider.power = 90; if (SCE
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05);
   uTime.value += dt;
-  loop.advance(performance.now());
+  const now = performance.now();
+  loop.advance(now);
   const v = rider.v, s = rider.s + v * loop.leftover();        // draw a little ahead of the last step, so motion stays smooth
 
   if (SCENERY !== null) {
@@ -89,7 +110,7 @@ function frame() {
   const kappa = -(pose.t.z * probe.t.x - pose.t.x * probe.t.z) / 4;
   lean += (Math.atan(v * v * kappa / 9.81) * 0.55 - lean) * Math.min(1, dt * 3);
   const effort = Math.min(1, rider.power / 300);
-  phase += dt * Math.PI * 2 * (rider.power > 5 ? 60 + Math.min(40, rider.power / 8) : 0) / 60;
+  phase += dt * Math.PI * 2 * (rider.cadence != null ? rider.cadence : rider.power > 5 ? 60 + Math.min(40, rider.power / 8) : 0) / 60;
   const sway = Math.sin(phase);
   camera.position.copy(pose.p).addScaledVector(pose.r, rider.lane + sway * 0.004 * effort);
   camera.position.y += 1.52;
@@ -119,11 +140,14 @@ function frame() {
   lens.uniforms.uTime.value = uTime.value; lens.uniforms.uRain.value = wx.rain; lens.uniforms.uPaint.value = wx.paint;
   updateAudio(v, wx.rain);
 
-  huT -= dt;
-  if (huT <= 0) {
-    huT = 0.25;
-    drawHeadUnit(unit.speed(v), unit.speedLabel, rider.power);
-    $('h-pw').textContent = rider.power.toFixed(0);
+  if (now - huT >= 250) {                                        // the numbers refresh four times a second
+    huT = now;
+    drawHeadUnit(unit.speed(v), unit.speedLabel, rider.target);
+    $('h-pw').textContent = rider.target.toFixed(0);
+    $('h-p3').textContent = power3s.avg.toFixed(0);
+    $('h-wk').textContent = wattsPerKg(power3s.avg, rider.body.riderKg).toFixed(1);
+    $('h-hr-box').hidden = rider.hr == null; if (rider.hr != null) $('h-hr').textContent = rider.hr.toFixed(0);
+    $('h-cd-box').hidden = rider.cadence == null; if (rider.cadence != null) $('h-cd').textContent = rider.cadence.toFixed(0);
     $('h-sp').textContent = unit.speed(v).toFixed(1);
     $('h-gr').textContent = (rider.grade >= 0 ? '+' : '') + rider.grade.toFixed(1);
     $('h-di').textContent = unit.distance(rider.dist).toFixed(2);

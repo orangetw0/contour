@@ -1,0 +1,28 @@
+/* How fast a rider will take each metre of a course: slow enough for the bend they are in, and slow enough to
+   brake in time for the bends ahead. Works from the road's shape alone.
+   opts.lateral: sideways grip the rider will use, m/s² (4 is a confident rider on a dry road).
+   opts.decel:   how hard they brake, m/s².  opts.max: top speed on a straight, m/s. */
+export function buildSpeedLimit(line, { lateral = 4, decel = 3, max = 27.8, window = 5 } = {}) {
+  const { N, LEN, T } = line, ds = LEN / N;
+  // how sharply the road turns at each sample (1/m), from the change of heading, averaged over a few samples
+  const raw = new Float32Array(N), kappa = new Float32Array(N), v = new Float32Array(N);
+  for (let i = 0; i < N; i++) {
+    const a = T[(i - 1 + N) % N], b = T[(i + 1) % N];
+    const la = Math.hypot(a.x, a.z) || 1, lb = Math.hypot(b.x, b.z) || 1;
+    raw[i] = Math.abs((a.x * b.z - a.z * b.x) / (la * lb)) / (2 * ds);
+  }
+  for (let i = 0; i < N; i++) {
+    let s = 0; for (let k = -window; k <= window; k++) s += raw[(i + k + N) % N];
+    kappa[i] = s / (2 * window + 1);
+    v[i] = Math.min(max, Math.sqrt(lateral / Math.max(kappa[i], 1e-6)));
+  }
+  // walk backwards, twice round the loop: never be going faster than you can brake from before the next bend
+  for (let pass = 0; pass < 2; pass++) for (let i = N - 1; i >= 0; i--) {
+    v[i] = Math.min(v[i], Math.sqrt(v[(i + 1) % N] ** 2 + 2 * decel * ds));
+  }
+  const at = s => {
+    const f = (((s % LEN) + LEN) % LEN) / LEN * N, i = Math.floor(f) % N, k = f - Math.floor(f);
+    return v[i] + (v[(i + 1) % N] - v[i]) * k;
+  };
+  return { at, v, kappa };
+}

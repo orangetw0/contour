@@ -55,6 +55,20 @@ def to_bng(lat, lon):
     E = 400000 + nu * c * d + nu / 6 * c ** 3 * (nu / rho - t * t) * d ** 3 + nu / 120 * c ** 5 * (5 - 18 * t * t + t ** 4 + 14 * eta2 - 58 * t * t * eta2) * d ** 5
     return E, N
 
+def geo_frame(cE, cN):
+    """How to turn the course's local metres back into WGS84 latitude and longitude, for GPS export:
+    lat = lat0 + m[0] * x + m[1] * z,  lon = lon0 + m[2] * x + m[3] * z   (x east, z south, metres from the origin).
+    A straight-line fit to the grid projection around the origin; good to centimetres across a course this size."""
+    lat, lon = 51.87, -2.07
+    for _ in range(30):                      # Newton's method: find the lat/lon whose grid position is the origin
+        E, N = to_bng(lat, lon); d = 1e-6
+        Ea, Na = to_bng(lat + d, lon); Eb, Nb = to_bng(lat, lon + d)
+        a, b, c, e = (Ea - E) / d, (Eb - E) / d, (Na - N) / d, (Nb - N) / d      # dE/dlat, dE/dlon, dN/dlat, dN/dlon
+        det = a * e - b * c; dE, dN = cE - E, cN - N
+        lat += (e * dE - b * dN) / det; lon += (-c * dE + a * dN) / det
+    # inverse Jacobian: degrees per metre east and per metre north; z points south, so its terms change sign
+    return {'lat0': round(lat, 8), 'lon0': round(lon, 8), 'm': [e / det, b / det, -c / det, -a / det]}
+
 def read_tiff(buf):
     le = buf[:2] == b'II'; f = '<' if le else '>'
     u16 = lambda o: struct.unpack_from(f + 'H', buf, o)[0]
@@ -185,7 +199,7 @@ q = struct.pack('<%dH' % len(grid), *[round((h - lo) / (hi - lo) * 65535) for h 
 
 # road line in local metres (x east, z south), a control point every 15 m
 road = [[round(line[k][0] - cE, 2), round(hts[k], 2), round(-(line[k][1] - cN), 2)] for k in range(0, len(line) - 1, 3)]
-course = {'name': 'Leckhampton Hill loop', 'size': size, 'cells': cells, 'origin': [cE, cN], 'quarry': [round(to_bng(51.8642, -2.0787)[0] - cE, 1), round(-(to_bng(51.8642, -2.0787)[1] - cN), 1)], 'demMin': lo, 'demMax': hi, 'road': road,
+course = {'name': 'Leckhampton Hill loop', 'size': size, 'cells': cells, 'origin': [cE, cN], 'quarry': [round(to_bng(51.8642, -2.0787)[0] - cE, 1), round(-(to_bng(51.8642, -2.0787)[1] - cN), 1)], 'geo': geo_frame(cE, cN), 'demMin': lo, 'demMax': hi, 'road': road,
           'credit': 'Route © OpenStreetMap contributors. Heights: Environment Agency LiDAR, Open Government Licence.',
           'dem': base64.b64encode(q).decode()}
 open('public/assets/leckhampton.js', 'w').write('window.RIDE_COURSES = window.RIDE_COURSES || {};\nwindow.RIDE_COURSES.leckhampton = ' + json.dumps(course) + ';\n')

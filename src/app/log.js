@@ -1,9 +1,10 @@
 /* Ride log: distance ridden, kept in this browser (localStorage). */
-import { $ } from '../util/dom.js';
+import { $, placePanel } from '../util/dom.js';
 import { COURSE_NAMES } from '../course/index.js';
 
 const KEY = 'contour-log', MIN = 100;         // rides under 100 m are not kept
 
+// unit: a function returning the current display units, since they can change mid-ride
 export function initLog({ rider, course, unit }) {
   const load = () => { try { const a = JSON.parse(localStorage.getItem(KEY)); return Array.isArray(a) ? a : []; } catch { return []; } };
   const ride = { t: new Date().toISOString(), c: course, m: 0, s: 0 };
@@ -14,10 +15,11 @@ export function initLog({ rider, course, unit }) {
     const all = load().filter(r => r.t !== ride.t); all.push({ ...ride, s: Math.round(ride.s) });
     try { localStorage.setItem(KEY, JSON.stringify(all.slice(-300))); ok = true; } catch { ok = false; }
   };
-  const far = m => { const d = unit.distance(m); return d.toFixed(d < 99.95 ? 1 : 0); }, box = $('log'), btn = $('logbtn'), u = unit.distanceLabel;
+  const far = m => { const d = unit().distance(m); return d.toFixed(d < 99.95 ? 1 : 0); }, box = $('log'), btn = $('logbtn');
   const day = t => new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
   const mins = s => s < 3600 ? Math.round(s / 60) + ' min' : Math.floor(s / 3600) + ' h ' + Math.round(s % 3600 / 60) + ' min';
   const draw = () => {
+    const u = unit().distanceLabel;
     const all = load().filter(r => r.t !== ride.t); if (rider.dist >= MIN) all.push({ ...ride, m: Math.round(rider.dist) });
     const today = new Date().toDateString(), sum = f => all.filter(f).reduce((a, r) => a + r.m, 0);
     const rows = all.slice(-10).reverse().map(r => `<tr><td>${day(r.t)}</td><td class="muted">${COURSE_NAMES[r.c] || 'Valley'}</td><td class="muted">${mins(r.s)}</td><td>${far(r.m)} ${u}</td></tr>`).join('');
@@ -28,7 +30,7 @@ export function initLog({ rider, course, unit }) {
       (all.length ? `<button id="logclear">Clear log</button>` : '');
     const c = $('logclear'); if (c) c.onclick = () => { if (confirm('Delete the whole ride log from this browser?')) { try { localStorage.removeItem(KEY); } catch {} rider.dist = 0; rider.time = 0; draw(); } };
   };
-  btn.onclick = () => { box.hidden = !box.hidden; btn.classList.toggle('on', !box.hidden); if (!box.hidden) draw(); };
+  btn.onclick = () => { $('rider').hidden = true; $('riderbtn').classList.remove('on'); box.hidden = !box.hidden; btn.classList.toggle('on', !box.hidden); if (!box.hidden) { placePanel(box); draw(); } };
   setInterval(() => { save(); if (!box.hidden) draw(); }, 5000);
   addEventListener('pagehide', save);
   document.addEventListener('visibilitychange', save);

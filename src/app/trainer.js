@@ -3,6 +3,7 @@
    control of it and sends the road gradient, so climbs feel harder on the bike. Without FTMS, or if the trainer
    refuses control, it stays power only. */
 import { $, query } from '../util/dom.js';
+import { crankData, cadenceBetween, indoorBikeCadence } from '../devices/sensors.js';
 import { FTMS, FTMS_POINT, FTMS_BIKE_DATA, OP_CONTROL, OP_REPLY, OP_OK, cyclingPower, indoorBikePower, trainerGrade, simParams } from '../devices/ftms.js';
 
 const HILLS_KEY = 'contour-hills';         // kept in this browser; ?hills= sets it for one visit
@@ -74,6 +75,11 @@ export function initTrainer({ rider, setTarget }) {
   const within = (p, ms) => new Promise((ok, no) => { const t = setTimeout(() => no(new Error('timed out')), ms); p.then(v => { clearTimeout(t); ok(v); }, e => { clearTimeout(t); no(e); }); });
   const watched = new WeakSet();
   const gotPower = w => { if (w === null) return; rider.trainer = true; setTarget(w); };
+  // cadence: from crank turns in the power message, or straight from FTMS. No new turn for 3 s means the legs have stopped.
+  let crank = null, cadAt = 0;
+  const gotCadence = rpm => { if (rpm === null) return; rider.cadence = rpm; cadAt = performance.now(); };
+  const gotCrank = c => { if (!c) return; const rpm = cadenceBetween(crank, c); if (rpm !== null || !crank) crank = c; gotCadence(rpm); };
+  setInterval(() => { if (rider.cadence && performance.now() - cadAt > 3000) rider.cadence = 0; }, 1000);
 
   // start reading power: the Cycling Power service if the trainer has it, otherwise FTMS Indoor Bike Data
   async function readPower(server) {
@@ -81,12 +87,12 @@ export function initTrainer({ rider, setTarget }) {
     try { ch = await (await server.getPrimaryService('cycling_power')).getCharacteristic('cycling_power_measurement'); } catch (err) {}
     if (ch) {
       await ch.startNotifications();
-      ch.addEventListener('characteristicvaluechanged', e => gotPower(cyclingPower(e.target.value)));
+      ch.addEventListener('characteristicvaluechanged', e => { gotPower(cyclingPower(e.target.value)); gotCrank(crankData(e.target.value)); });
       return;
     }
     const data = await (await server.getPrimaryService(FTMS)).getCharacteristic(FTMS_BIKE_DATA);
     await data.startNotifications();
-    data.addEventListener('characteristicvaluechanged', e => gotPower(indoorBikePower(e.target.value)));
+    data.addEventListener('characteristicvaluechanged', e => { gotPower(indoorBikePower(e.target.value)); gotCadence(indoorBikeCadence(e.target.value)); });
   }
 
   // connect to one trainer and start reading its power (and sending gradient, if it allows)
@@ -98,7 +104,7 @@ export function initTrainer({ rider, setTarget }) {
     if (!watched.has(dev)) {
       watched.add(dev);
       dev.addEventListener('gattserverdisconnected', () => {
-        rider.trainer = false; clearInterval(bike.timer); bike.dev = bike.point = null; btLabel();
+        rider.trainer = false; rider.cadence = null; crank = null; clearInterval(bike.timer); bike.dev = bike.point = null; btLabel();
         rejoin(dev);
       });
     }

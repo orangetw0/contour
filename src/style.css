@@ -3,7 +3,7 @@ body { font: 500 14px/1.2 -apple-system, "Helvetica Neue", Helvetica, Arial, san
 canvas#c { display: block; width: 100vw; height: 100vh; }
 #loading { position: fixed; inset: 0; display: grid; place-items: center; background: #0b0a09;
   letter-spacing: .18em; text-transform: uppercase; font-size: 12px; color: #cdb99a; transition: opacity .8s; }
-#hud { position: fixed; left: 30px; bottom: 26px; display: flex; gap: 26px;
+#hud { position: fixed; left: 30px; bottom: 26px; display: flex; gap: 18px;
   text-shadow: 0 1px 12px rgba(0,0,0,.55); font-variant-numeric: tabular-nums; pointer-events: none; }
 #hud div { text-align: left; min-width: 70px; }
 #hud b { display: block; font-size: 30px; font-weight: 300; letter-spacing: -.01em; }
@@ -19,17 +19,23 @@ canvas#c { display: block; width: 100vw; height: 100vh; }
 #hills { display: flex; gap: 4px; align-items: center; }
 #hills button { min-width: 30px; padding-left: 0; padding-right: 0; }
 #hval { min-width: 74px; text-align: center; }
-#log { position: fixed; top: 64px; right: 18px; width: 270px; max-height: 70vh; overflow: auto; padding: 14px 16px; border-radius: 14px;
+.panel { position: fixed; top: 64px; right: 18px; width: 270px; max-height: 70vh; overflow: auto; padding: 14px 16px; border-radius: 14px;
   background: rgba(20,16,12,.72); border: 1px solid rgba(255,255,255,.3); backdrop-filter: blur(8px); font-size: 13px; color: #fff; }
-#log h3 { margin: 0 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; opacity: .75; }
-#log .tot { display: flex; gap: 18px; margin-bottom: 12px; }
-#log .tot b { display: block; font-size: 22px; font-weight: 300; font-variant-numeric: tabular-nums; }
-#log .tot span { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; opacity: .7; }
-#log table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-#log td { padding: 4px 0; border-top: 1px solid rgba(255,255,255,.14); }
-#log td:last-child { text-align: right; }
-#log .muted { opacity: .65; }
-#log button { margin-top: 12px; font: inherit; font-size: 11px; color: #fff; background: none; border: 1px solid rgba(255,255,255,.35); border-radius: 999px; padding: 4px 10px; cursor: pointer; }
-body.clean #hud, body.clean #ctl, body.clean #log, body.clean #credit { display: none; }
+.panel h3 { margin: 0 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; opacity: .75; }
+.panel .tot { display: flex; gap: 18px; margin-bottom: 12px; }
+.panel .tot b { display: block; font-size: 22px; font-weight: 300; font-variant-numeric: tabular-nums; }
+.panel .tot span { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; opacity: .7; }
+.panel table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.panel td { padding: 4px 0; border-top: 1px solid rgba(255,255,255,.14); }
+.panel td:last-child { text-align: right; }
+.panel .muted { opacity: .65; }
+.panel button { margin-top: 12px; font: inherit; font-size: 11px; color: #fff; background: none; border: 1px solid rgba(255,255,255,.35); border-radius: 999px; padding: 4px 10px; cursor: pointer; }
+body.clean #hud, body.clean #ctl, body.clean .panel, body.clean #credit { display: none; }
 body.clean { cursor: none; }
-#credit { position: fixed; right: 14px; bottom: 10px; font-size: 10px; letter-spacing: .04em; opacity: .7; text-shadow: 0 1px 6px rgba(0,0,0,.7); max-width: 46vw; text-align: right; }
+#credit { position: fixed; right: 14px; bottom: 10px; font-size: 10px; letter-spacing: .04em; opacity: .7; text-shadow: 0 1px 6px rgba(0,0,0,.7); max-width: 30vw; text-align: right; }
+.panel label { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid rgba(255,255,255,.14); }
+.panel input, .panel select { font: inherit; color: #fff; background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.35); border-radius: 8px; padding: 5px 8px; width: 130px; box-sizing: border-box; }
+.panel select option { color: #000; }
+.panel .note { margin-top: 10px; font-size: 11px; line-height: 1.4; opacity: .65; }
+#hud div[hidden] { display: none; }
+#hud div { min-width: 62px; }

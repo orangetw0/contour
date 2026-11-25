@@ -43,6 +43,11 @@ describe('rider', () => {
     for (let i = 0; i < 300; i++) stepRider(r, line, 1 / 60);
     expect(r.power).toBeGreaterThan(299);
   });
+  it('tracks altitude and ride time', () => {
+    const r = createRider({ body, s: 300 });
+    for (let i = 0; i < 120; i++) stepRider(r, line, 1 / 60);
+    expect(r.time).toBeCloseTo(2, 6); expect(r.altitude).toBeCloseTo(line.at(r.s, mkPose()).p.y, 0);
+  });
   it('holds a cruise speed in scenery mode', () => {
     const r = createRider({ body });
     for (let i = 0; i < 1200; i++) stepRider(r, line, 1 / 60, { cruise: 5 });
