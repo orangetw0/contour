@@ -13,14 +13,17 @@ export function makeGeo(size = 1) {
   const g = {
     size: k, wheelR: 0.335, rearZ: -0.41, frontZ: 0.585 + (k - 1) * 0.28, bbY, crank: 0.1725, pedalX: 0.125,
     seatTop: at(0.77, -0.148), saddle: at(0.985, -0.215), headTop: at(0.835, 0.40), headBottom: at(0.695, 0.443),
-    bar: at(0.895, 0.50), barHalf: 0.20 * (0.6 + 0.4 * k),
+    bar: at(0.9, 0.47), barHalf: 0.20 * (0.6 + 0.4 * k),
   };
   // the brake hoods: where they leave the bar, and the top of the body where the hand rests
   g.hoodBase = side => new V3(side * g.barHalf, g.bar.y - 0.004, g.bar.z + 0.078);
   g.hoodRest = side => new V3(side * g.barHalf, g.bar.y + 0.024, g.bar.z + 0.118);
   // where the rider touches the bike, in the bike's frame. side: +1 left, -1 right.
-  g.hipPoint = () => new V3(0, g.saddle.y + 0.10 * k, g.saddle.z + 0.05 * k);
-  g.hoodPoint = g.hoodRest;
+  // the middle of the hood's body, which the hand closes round
+  g.hoodGrip = side => g.hoodBase(side).add(g.hoodRest(side)).multiplyScalar(0.5).add(new V3(0, -0.002, -0.01));
+  // the hip joints sit above the wide rear part of the saddle, where the sit bones rest
+  g.hipPoint = () => new V3(0, g.saddle.y + 0.088 * k, g.saddle.z - 0.012 * k);
+  g.hoodPoint = g.hoodGrip;
   g.pedalPoint = (side, crankAngle, out = new V3()) => {          // the right crank leads; the left is half a turn behind
     const a = crankAngle + (side > 0 ? Math.PI : 0);
     return out.set(side * g.pedalX, g.bbY + g.crank * Math.cos(a), g.crank * Math.sin(a));

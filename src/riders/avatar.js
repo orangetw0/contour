@@ -79,37 +79,44 @@ export function createAvatar(gltf, { kit = KITS.red, sex = 'male', kg = 72, heig
     model.updateMatrixWorld(true);
     spine.forEach((b, i) => rotateWorld(b, X, lean * share[i]));
     hips.addVectors(worldPos(B.thigh_l, tmp), worldPos(B.thigh_r, tmp2)).multiplyScalar(0.5);
-    B.pelvis.position.add(tmp.subVectors(hip, hips).divideScalar(scale)); B.pelvis.updateMatrixWorld(true);
+    // move the pelvis so the hips land on their spot, in the pelvis's own parent's terms (the skeleton's root is turned on its side)
+    const up = B.pelvis.parent; up.worldToLocal(tmp.copy(hip)); up.worldToLocal(hips);
+    B.pelvis.position.add(tmp.sub(hips)); B.pelvis.updateMatrixWorld(true);
     rotateWorld(B.neck_01, X, -lean * 0.4); rotateWorld(B.Head, X, -lean * 0.42);       // look up the road
   }
+  const reach = hood[1].clone().add(new V3(0.024, 0.01, -joint.hand_l.distanceTo(joint.middle_01_l) * 0.3));          // about where the wrist ends up
   // lean forward just far enough that the arms reach the hoods with a little bend
-  let lo = 0.35, hi = 1.3;
+  let lo = 0.35, hi = 1.65;
   for (let i = 0; i < 14; i++) {
     const mid = (lo + hi) / 2; torso(mid);
-    if (worldPos(B.upperarm_l, tmp).distanceTo(hood[1]) > armLen * 0.97) lo = mid; else hi = mid;
+    if (worldPos(B.upperarm_l, tmp).distanceTo(reach) > armLen * 0.955) lo = mid; else hi = mid;      // elbows a little bent
   }
   const lean = (lo + hi) / 2;
 
-  const toeFwd = new V3(), toeUp = new V3(), curl = new V3(), handFwd = new V3(), palm = new V3(), wrist = new V3();
-  const handLen = joint.hand_l.distanceTo(joint.middle_01_l), CURL = { index: [0.55, 1.0, 0.6], middle: [0.7, 1.05, 0.6], ring: [0.95, 1.1, 0.6], pinky: [1.0, 1.1, 0.6] };
+  const toeFwd = new V3(), toeUp = new V3(), curl = new V3(), handFwd = new V3(), palm = new V3(), wrist = new V3(), up = new V3();
+  const handLen = joint.hand_l.distanceTo(joint.middle_01_l), CURL = { index: [0.5, 1.05, 0.75], middle: [0.7, 1.1, 0.8], ring: [0.9, 1.15, 0.7], pinky: [1.0, 1.2, 0.7] };
   /* crankAngle: radians, 0 with the right pedal up. sway: small side-to-side rock of the shoulders (radians). */
   function pose(crankAngle, sway = 0) {
+    // solve in the rider's own frame, wherever in the world they are: step out of the scene while posing
+    const home = object.parent; object.parent = null; object.updateMatrixWorld(true);
     for (const n in rest) B[n].quaternion.copy(rest[n].q);
     torso(lean);
     if (sway) rotateWorld(B.spine_02, Z, sway);
     for (const side of [1, -1]) {
       const s = side > 0 ? '_l' : '_r';
-      // arm and hand: the palm lies on top of the brake hood with the fingers pointing forward and a little down,
-      // the first two fingers hooked over the lever and the others wrapped under the hood; the thumb sits inside
-      handFwd.set(-side * 0.1, -0.3, 0.95).normalize(); palm.set(-side * 0.5, -0.86, -0.1).addScaledVector(handFwd, 0.3).normalize();
-      wrist.copy(hood[side]).addScaledVector(handFwd, -handLen * 0.42).addScaledVector(palm, -0.006);
-      twoBone(B['upperarm' + s], B['lowerarm' + s], B['hand' + s], wrist, tmp.set(side * 0.5, -1, -0.3));
+      /* Arm and hand, as riders hold the hoods: the forearm in line with the hood, the hand upright like a
+         handshake with the palm against the hood's outer side, the thumb over the top to the inside, the first two
+         fingers reaching round the brake lever and the other two wrapped under the hood. */
+      handFwd.set(-side * 0.06, -0.2, 0.98).normalize(); palm.set(-side, -0.32, 0).addScaledVector(handFwd, side * 0.06).normalize();
+      up.crossVectors(handFwd, palm).multiplyScalar(-side).normalize();                 // the thumb side of the hand
+      wrist.copy(hood[side]).addScaledVector(palm, -0.024).addScaledVector(handFwd, -handLen * 0.3).addScaledVector(up, 0.008);
+      twoBone(B['upperarm' + s], B['lowerarm' + s], B['hand' + s], wrist, tmp.set(side * 0.35, -1, -0.3));
       setWorldQuat(B['hand' + s], frameRotation(tmp2.set(side, 0, 0), Y.clone().negate(), handFwd, palm, q).multiply(rest['hand' + s].w));
       curl.crossVectors(handFwd, palm).normalize();
       for (const f in CURL) CURL[f].forEach((bend, n) => rotateWorld(B[`${f}_0${n + 1}${s}`], curl, bend));
-      // the thumb lies along the inside of the hood, pointing forward and down
-      aim(B['thumb_01' + s], B['thumb_02' + s], worldPos(B['thumb_01' + s], tmp).addScaledVector(handFwd, 0.75).addScaledVector(palm, 0.55).add(tmp2.set(-side * 0.25, 0, 0)));
-      aim(B['thumb_02' + s], B['thumb_03' + s], worldPos(B['thumb_02' + s], tmp).addScaledVector(handFwd, 0.6).addScaledVector(palm, 0.8).add(tmp2.set(side * 0.1, 0, 0)));
+      // the thumb goes over the top of the hood and lies along its inner side
+      aim(B['thumb_01' + s], B['thumb_02' + s], worldPos(B['thumb_01' + s], tmp).addScaledVector(handFwd, 0.7).addScaledVector(palm, 0.55).addScaledVector(up, 0.3));
+      aim(B['thumb_02' + s], B['thumb_03' + s], worldPos(B['thumb_02' + s], tmp).addScaledVector(handFwd, 0.85).addScaledVector(palm, 0.35).addScaledVector(up, -0.25));
       // leg: the ball of the foot sits on the pedal; the ankle drops a little over the top and points on the way down
       geo.pedalPoint(side, crankAngle, pedal);
       const a = crankAngle + (side > 0 ? Math.PI : 0), pitch = 0.2 + 0.16 * Math.sin(a - 0.6);       // toe-down angle
@@ -120,6 +127,7 @@ export function createAvatar(gltf, { kit = KITS.red, sex = 'male', kg = 72, heig
       twoBone(B['thigh' + s], B['calf' + s], B['foot' + s], ankle, tmp.set(side * 0.06, 0.25, 1));
       setWorldQuat(B['foot' + s], q.multiply(rest['foot' + s].w));
     }
+    object.parent = home; object.updateMatrixWorld(true);
   }
   pose(0);
   return { object, pose, bones, lean, shape };
