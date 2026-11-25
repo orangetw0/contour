@@ -21,7 +21,7 @@ describe('realistic physics', () => {
     expect(kmh(steadySpeed(0, -0.10, body))).toBeGreaterThan(kmh(steadySpeed(0, -0.10, body, LEGACY)) + 15);
   });
   it('a heavier rider climbs slower and descends faster', () => {
-    const heavy = { ...body, mass: 95 };
+    const heavy = { ...body, mass: 95 };                                   // same drag, more mass
     expect(steadySpeed(250, 0.08, heavy)).toBeLessThan(steadySpeed(250, 0.08, body));
     expect(steadySpeed(0, -0.06, heavy)).toBeGreaterThan(steadySpeed(0, -0.06, body));
   });
@@ -89,6 +89,8 @@ describe('profile', () => {
   const store = () => { const m = new Map(); return { getItem: k => m.has(k) ? m.get(k) : null, setItem: (k, v) => m.set(k, v) }; };
   it('defaults to a 72 kg rider on an 8 kg all-round bike', () => {
     expect(body).toEqual({ mass: 80, riderKg: 72, cda: 0.32, crr: 0.004 });
+    expect(bodyOf({ ...DEFAULT_PROFILE, riderKg: 92 }).cda).toBeCloseTo(0.336, 3);          // a bigger rider pushes more air
+    expect(bodyOf({ ...DEFAULT_PROFILE, riderKg: 52 }).cda).toBeLessThan(0.31);
   });
   it('falls back to defaults on junk', () => {
     expect(cleanProfile('nope')).toEqual(DEFAULT_PROFILE);
@@ -97,7 +99,7 @@ describe('profile', () => {
     expect(cleanProfile({ bike: 'toString' }).bike).toBe('allround');
   });
   it('clamps silly numbers and keeps good ones', () => {
-    expect(cleanProfile({ riderKg: 900, bike: 'tt', units: 'imperial', character: 'female', kit: 'blue' })).toEqual({ riderKg: 200, bike: 'tt', units: 'imperial', character: 'female', kit: 'blue' });
+    expect(cleanProfile({ riderKg: 900, heightCm: 20, bike: 'tt', units: 'imperial', character: 'female', kit: 'blue', skin: 'tan' })).toEqual({ riderKg: 200, heightCm: 140, bike: 'tt', units: 'imperial', character: 'female', kit: 'blue', skin: 'tan' });
     expect(cleanProfile({ character: 'robot', kit: 'plaid' })).toMatchObject({ character: 'male', kit: 'red' });
     expect(cleanProfile({ riderKg: 'x' }).riderKg).toBe(72);
   });

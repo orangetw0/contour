@@ -1,6 +1,6 @@
 /* Puts a rider and bike into the world: one rig that follows a rider's place on the road. */
 import * as THREE from 'three';
-import { createBike } from './bike.js';
+import { createBike, makeGeo } from './bike.js';
 import { loadCharacter, createAvatar, KITS } from './avatar.js';
 
 const V3 = THREE.Vector3, m = new THREE.Matrix4(), left = new V3(), up = new V3(), fwd = new V3(), q = new THREE.Quaternion(), AXIS_Z = new V3(0, 0, 1), AXIS_Y = new V3(0, 1, 0);
@@ -23,14 +23,18 @@ export function createRiderView(scene, { label = '' } = {}) {
   let bike = null, avatar = null, tag = null, want = '', crank = 0, lastDist = null, yaw = 0;
 
   // (re)build for a character and kit; the model loads in the background
-  async function dress({ character, kit }) {
-    const key = character + '/' + kit; if (key === want) return; want = key;
+  // who: { character, kit, kg, heightM, skin }
+  async function dress(who) {
+    const { character = 'male', kit = 'red', kg = 72, heightM = 1.78, skin = 'medium' } = who;
+    const key = [character, kit, Math.round(kg), heightM.toFixed(2), skin].join('/'); if (key === want) return; want = key;
     const colours = KITS[kit] || KITS.red, gltf = await loadCharacter(character);
     if (want !== key) return;                                      // changed again while loading
     rig.clear();
-    bike = createBike({ frame: colours.bike }); avatar = createAvatar(gltf, { kit: colours });
+    const geo = makeGeo(heightM / 1.8);                             // a frame to fit
+    bike = createBike({ frame: colours.bike, geo }); avatar = createAvatar(gltf, { kit: colours, sex: character, kg, heightM, skin, geo });
+    tag = null;
     rig.add(bike.object, avatar.object);
-    if (label) { tag = nameTag(label); rig.add(tag); }
+    if (label) { tag = nameTag(label); tag.position.y = heightM + 0.42; rig.add(tag); }
   }
 
   /* Place the rig. pose: the road at the rider (p, t, r from the course line). rider: the simulation's rider.

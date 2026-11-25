@@ -8,7 +8,7 @@ rider profiles, other riders, real routes and ride export.
 
 - Two courses: an invented mountain valley, and a real 11.9 km Leckhampton loop built from Environment Agency lidar, dressed as the 19th-century hill (sheep, hay stooks, quarry smoke). `?course=leckhampton` opens the loop.
 - Four looks: Golden, Overcast, Rain and Mist. Buttons at the top, keys 1–4, or by voice. `?theme=christmas` gives the valley under snow.
-- Your rider on screen: a rigged male or female character in cycling kit on a road bike, pedalling at your cadence, seen from behind (the V key switches to the view from the saddle). Choose the rider and kit colour in the Rider panel.
+- Your rider on screen: a rigged male or female character in cycling kit on a road bike, pedalling at your cadence, seen from behind (the V key switches to the view from the saddle). The body follows your height and weight, on a frame sized to fit. Choose the rider, kit colour and skin tone in the Rider panel.
 - Steering: hold ← or → (or A and D) to move across your lane. U turns round and rides back the other way. P pauses.
 - Other riders: a field of bots with the same physics as you. They push on climbs, coast descents, sit on wheels, pull out to pass and chat among themselves. `?bots=0` rides alone; `?bots=30` brings a crowd.
 - Drafting: sit behind another rider and your air drag drops by up to about a third, more behind a bigger rider. The HUD shows the saving.
@@ -40,7 +40,7 @@ npm run build      # static site in dist/
 - `src/course/` – the road line (`line.js`), how fast each bend can be taken (`speedLimit.js`) and course loading (`index.js`).
 - `src/devices/` – Bluetooth message formats: trainer (`ftms.js`), heart rate and cadence (`sensors.js`).
 - `src/export/fit.js` – writes a ride as a FIT file.
-- `src/riders/` – the rider you see: the bike (`bike.js`), the character, kit and riding position (`avatar.js`), the posing maths (`ik.js`) and placing them on the road (`riderView.js`). `tools/avatar-preview.html` shows riders on their own while the dev server runs.
+- `src/riders/` – the rider you see: the bike (`bike.js`), the character, kit and riding position (`avatar.js`), body shape from height and weight (`body.js`), the posing maths (`ik.js`) and placing them on the road (`riderView.js`). `tools/avatar-preview.html` shows riders on their own while the dev server runs.
 - `src/app/` – trainer and heart-rate connections, Rider panel, other riders and pacers (`company.js`), ride log, save, voice and sound.
 - `src/world/` – everything you see, one file per part (terrain, road, pines, weather…). Each imports the one before it, because the scenery is built from one seeded random sequence.
 - `public/assets/` – textures and course data.

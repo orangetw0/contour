@@ -13,7 +13,7 @@ import { MODELS, REAL } from './sim/physics.js';
 import { createRolling, wattsPerKg } from './sim/metrics.js';
 import { createRecorder } from './sim/recorder.js';
 import { buildSpeedLimit } from './course/speedLimit.js';
-import { loadProfile, bodyOf } from './sim/profile.js';
+import { loadProfile, bodyOf, lookOf } from './sim/profile.js';
 import { units } from './sim/units.js';
 import { initTrainer } from './app/trainer.js';
 import { initLog } from './app/log.js';
@@ -114,8 +114,8 @@ addEventListener('keydown', e => { if ((e.key === 'h' || e.key === 'H') && !e.me
 const trainer = initTrainer({ rider, setTarget });
 initLog({ rider, course: COURSE, unit: () => unit });
 initHeart({ rider });
-initSettings({ profile, onChange: p => { profile = p; unit = units(p.units); rider.body = bodyOf(p); showUnits(); riderView.dress(p); } });
-riderView.dress(profile);
+initSettings({ profile, onChange: p => { profile = p; unit = units(p.units); rider.body = bodyOf(p); showUnits(); riderView.dress(lookOf(p)); } });
+riderView.dress(lookOf(profile));
 initSave({ recorder, course: COURSE });
 rider.name = 'you';
 if (bots.length) company = initCompany({ scene, camera, line, bots, rider, unit: () => unit,

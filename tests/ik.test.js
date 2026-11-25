@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { twoBone, aim, rotateWorld, worldPos, frameRotation, setWorldQuat, worldQuat } from '../src/riders/ik.js';
-import { pedalPoint, hipPoint, hoodPoint, GEO } from '../src/riders/bike.js';
+import { GEO, makeGeo } from '../src/riders/bike.js';
+
+const { pedalPoint, hipPoint, hoodPoint } = GEO;
 
 const V3 = THREE.Vector3;
 function limb() {       // a 0.45 + 0.45 m leg hanging down from a tilted parent, like a thigh, calf and foot
@@ -54,5 +56,12 @@ describe('bike contact points', () => {
   it('puts the hips over the saddle and the hands ahead of them on either side', () => {
     expect(hipPoint().y).toBeGreaterThan(GEO.saddle.y); expect(hoodPoint(1).x).toBeGreaterThan(0); expect(hoodPoint(-1).x).toBeLessThan(0);
     expect(hoodPoint(1).z).toBeGreaterThan(hipPoint().z + 0.6);
+  });
+  it('a smaller frame brings the saddle down and the bars closer, with the same wheels and cranks', () => {
+    const s = makeGeo(0.9), l = makeGeo(1.08);
+    expect(s.saddle.y).toBeLessThan(GEO.saddle.y); expect(l.saddle.y).toBeGreaterThan(GEO.saddle.y);
+    expect(s.hoodPoint(1).z - s.hipPoint().z).toBeLessThan(hoodPoint(1).z - hipPoint().z);
+    expect(s.wheelR).toBe(GEO.wheelR); expect(s.crank).toBe(GEO.crank); expect(s.frontZ).toBeLessThan(l.frontZ);
+    expect(makeGeo(3).size).toBe(1.12);
   });
 });
