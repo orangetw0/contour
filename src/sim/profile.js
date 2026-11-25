@@ -11,7 +11,8 @@ export const BIKES = Object.freeze({
   gravel: { name: 'Gravel', kg: 9.5, cda: 0.36, crr: 0.006 },
 });
 
-export const DEFAULT_PROFILE = Object.freeze({ riderKg: 72, bike: 'allround', units: 'metric' });
+export const DEFAULT_PROFILE = Object.freeze({ riderKg: 72, bike: 'allround', units: 'metric', character: 'male', kit: 'red' });
+const CHARACTER = ['male', 'female'], KIT = ['red', 'blue', 'green', 'orange', 'white', 'black'];
 const KG = [30, 200];
 
 export function cleanProfile(raw) {
@@ -20,6 +21,8 @@ export function cleanProfile(raw) {
     if (raw.riderKg !== null && raw.riderKg !== '' && Number.isFinite(+raw.riderKg)) p.riderKg = Math.min(KG[1], Math.max(KG[0], +raw.riderKg));
     if (Object.hasOwn(BIKES, raw.bike)) p.bike = raw.bike;
     if (raw.units === 'imperial' || raw.units === 'metric') p.units = raw.units;
+    if (CHARACTER.includes(raw.character)) p.character = raw.character;
+    if (KIT.includes(raw.kit)) p.kit = raw.kit;
   }
   return p;
 }

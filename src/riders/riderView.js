@@ -1,0 +1,44 @@
+/* Puts a rider and bike into the world: one rig that follows a rider's place on the road. */
+import * as THREE from 'three';
+import { createBike } from './bike.js';
+import { loadCharacter, createAvatar, KITS } from './avatar.js';
+
+const V3 = THREE.Vector3, m = new THREE.Matrix4(), left = new V3(), up = new V3(), fwd = new V3(), pos = new V3(), q = new THREE.Quaternion(), AXIS_Z = new V3(0, 0, 1), AXIS_Y = new V3(0, 1, 0);
+
+export function createRiderView(scene) {
+  const rig = new THREE.Group(); rig.matrixAutoUpdate = false; rig.visible = false; scene.add(rig);
+  let bike = null, avatar = null, want = '', crank = 0, lastDist = null, yaw = 0;
+
+  // (re)build for a character and kit; the model loads in the background
+  async function dress({ character, kit }) {
+    const key = character + '/' + kit; if (key === want) return; want = key;
+    const colours = KITS[kit] || KITS.red, gltf = await loadCharacter(character);
+    if (want !== key) return;                                      // changed again while loading
+    rig.clear();
+    bike = createBike({ frame: colours.bike }); avatar = createAvatar(gltf, { kit: colours });
+    rig.add(bike.object, avatar.object);
+  }
+
+  /* Place the rig. pose: the road at the rider (p, t, r from the course line). rider: the simulation's rider.
+     lean: radians into the bend. dt: seconds since the last frame. */
+  function update(rider, pose, lean, dt) {
+    if (!avatar) return;
+    const cadence = rider.cadence != null ? rider.cadence : rider.power > 5 && rider.v > 0.3 ? 62 + Math.min(38, rider.power / 8) : 0;
+    crank += dt * cadence / 60 * Math.PI * 2;
+    const rolled = lastDist === null ? 0 : rider.dist - lastDist; lastDist = rider.dist;
+    // the picture: turning the bars a touch when changing line, rocking the shoulders with effort
+    const drift = Math.atan2(rider.slide, Math.max(rider.v, 2));
+    bike.update(rolled, crank, -drift * 0.8);
+    rig.matrix.identity(); rig.updateMatrixWorld(true);              // the pose is solved in the bike's own frame
+    avatar.pose(crank, Math.sin(crank) * Math.min(0.05, rider.power / 9000));
+    // where and which way: along the road in the rider's direction, offset into their lane
+    fwd.copy(pose.t).multiplyScalar(rider.dir); left.copy(pose.r).multiplyScalar(-rider.dir); up.crossVectors(fwd, left).normalize(); left.crossVectors(up, fwd);
+    pos.copy(pose.p).addScaledVector(left, -rider.lane);
+    m.makeBasis(left, up, fwd); q.setFromRotationMatrix(m);
+    const ease = rider.uturn * rider.uturn * (3 - 2 * rider.uturn);         // coming round after a U-turn
+    yaw = -drift + ease * Math.PI;
+    q.multiply(new THREE.Quaternion().setFromAxisAngle(AXIS_Y, yaw)).multiply(new THREE.Quaternion().setFromAxisAngle(AXIS_Z, lean));
+    rig.matrix.compose(pos, q, rig.scale); rig.updateMatrixWorld(true);
+  }
+  return { rig, dress, update, get ready() { return !!avatar; } };
+}

@@ -1,0 +1,5 @@
+Rider models: "Universal Base Characters" (Standard version) by Quaternius, https://quaternius.com
+Licence: CC0 1.0 Universal (public domain dedication), https://creativecommons.org/publicdomain/zero/1.0/
+
+Files here: the Superhero male and female base characters (glTF), renamed male.gltf and female.gltf, with their
+textures. The eyebrow textures have been reduced to 256 px. Nothing else is changed.

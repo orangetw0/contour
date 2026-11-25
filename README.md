@@ -8,7 +8,9 @@ rider profiles, other riders, real routes and ride export.
 
 - Two courses: an invented mountain valley, and a real 11.9 km Leckhampton loop built from Environment Agency lidar, dressed as the 19th-century hill (sheep, hay stooks, quarry smoke). `?course=leckhampton` opens the loop.
 - Four looks: Golden, Overcast, Rain and Mist. Buttons at the top, keys 1–4, or by voice. `?theme=christmas` gives the valley under snow.
-- Skip forward and back 250 m with the arrow keys.
+- Your rider on screen: a rigged male or female character in cycling kit on a road bike, pedalling at your cadence, seen from behind (the V key switches to the view from the saddle). Choose the rider and kit colour in the Rider panel.
+- Steering: hold ← or → (or A and D) to move across your lane. U turns round and rides back the other way. P pauses.
+- Skip forward and back 250 m with the ] and [ keys.
 - Hide everything on screen for a clean view: the Hide info button, the H key, or say "hide". `?scenery` drifts along on its own.
 - Power from a slider, or from a Bluetooth trainer (Chrome or Edge). Power is read from the Cycling Power service, or from the Fitness Machine Service (FTMS) on trainers that have only that. If the trainer supports resistance control, the ride also sends it the road gradient; the − and + buttons set how much of each hill it feels (`?hills=` sets it for one visit).
 - Realistic speed: gravity counts in full up and down, air thins with altitude, the drivetrain loses a little, and the rider brakes for bends instead of at a fixed speed. `?physics=legacy` brings back the original rules.
@@ -35,6 +37,7 @@ npm run build      # static site in dist/
 - `src/course/` – the road line (`line.js`), how fast each bend can be taken (`speedLimit.js`) and course loading (`index.js`).
 - `src/devices/` – Bluetooth message formats: trainer (`ftms.js`), heart rate and cadence (`sensors.js`).
 - `src/export/fit.js` – writes a ride as a FIT file.
+- `src/riders/` – the rider you see: the bike (`bike.js`), the character, kit and riding position (`avatar.js`), the posing maths (`ik.js`) and placing them on the road (`riderView.js`). `tools/avatar-preview.html` shows riders on their own while the dev server runs.
 - `src/app/` – trainer and heart-rate connections, Rider panel, ride log, save, voice and sound.
 - `src/world/` – everything you see, one file per part (terrain, road, pines, weather…). Each imports the one before it, because the scenery is built from one seeded random sequence.
 - `public/assets/` – textures and course data.
@@ -44,6 +47,7 @@ npm run build      # static site in dist/
 ## Credits
 
 - Original ride: Jamie Marsland, Golden Hour Ride (MIT).
+- Rider models: Quaternius, Universal Base Characters (CC0).
 - Textures: Poly Haven (CC0).
 - Terrain: Environment Agency LiDAR Composite DTM, Open Government Licence v3.0.
 - Roads, woodland and field boundaries: © OpenStreetMap contributors, ODbL.

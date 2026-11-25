@@ -63,6 +63,10 @@ describe('corner speed limits', () => {
   it('always leaves room to brake for what is ahead, round the whole loop', () => {
     for (let i = 0; i < line.N; i++) expect(lim.v[i] ** 2).toBeLessThanOrEqual(lim.v[(i + 1) % line.N] ** 2 + 2 * 3 * ds + 1e-2);
   });
+  it('leaves room to brake when riding the course the other way too', () => {
+    for (let i = 0; i < line.N; i++) expect(lim.back[i] ** 2).toBeLessThanOrEqual(lim.back[(i - 1 + line.N) % line.N] ** 2 + 2 * 3 * ds + 1e-2);
+    expect(lim.at(100, -1)).toBeCloseTo(lim.back[Math.floor(100 / ds)], 0);
+  });
   it('interpolates along the road and wraps', () => {
     expect(lim.at(0)).toBeCloseTo(lim.v[0], 6); expect(lim.at(line.LEN)).toBeCloseTo(lim.v[0], 4); expect(lim.at(-ds)).toBeCloseTo(lim.v[line.N - 1], 3);
   });
@@ -93,7 +97,8 @@ describe('profile', () => {
     expect(cleanProfile({ bike: 'toString' }).bike).toBe('allround');
   });
   it('clamps silly numbers and keeps good ones', () => {
-    expect(cleanProfile({ riderKg: 900, bike: 'tt', units: 'imperial' })).toEqual({ riderKg: 200, bike: 'tt', units: 'imperial' });
+    expect(cleanProfile({ riderKg: 900, bike: 'tt', units: 'imperial', character: 'female', kit: 'blue' })).toEqual({ riderKg: 200, bike: 'tt', units: 'imperial', character: 'female', kit: 'blue' });
+    expect(cleanProfile({ character: 'robot', kit: 'plaid' })).toMatchObject({ character: 'male', kit: 'red' });
     expect(cleanProfile({ riderKg: 'x' }).riderKg).toBe(72);
   });
   it('round-trips through storage', () => {

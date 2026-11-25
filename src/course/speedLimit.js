@@ -5,7 +5,7 @@
 export function buildSpeedLimit(line, { lateral = 4, decel = 3, max = 27.8, window = 5 } = {}) {
   const { N, LEN, T } = line, ds = LEN / N;
   // how sharply the road turns at each sample (1/m), from the change of heading, averaged over a few samples
-  const raw = new Float32Array(N), kappa = new Float32Array(N), v = new Float32Array(N);
+  const raw = new Float32Array(N), kappa = new Float32Array(N), v = new Float32Array(N), back = new Float32Array(N);
   for (let i = 0; i < N; i++) {
     const a = T[(i - 1 + N) % N], b = T[(i + 1) % N];
     const la = Math.hypot(a.x, a.z) || 1, lb = Math.hypot(b.x, b.z) || 1;
@@ -14,15 +14,19 @@ export function buildSpeedLimit(line, { lateral = 4, decel = 3, max = 27.8, wind
   for (let i = 0; i < N; i++) {
     let s = 0; for (let k = -window; k <= window; k++) s += raw[(i + k + N) % N];
     kappa[i] = s / (2 * window + 1);
-    v[i] = Math.min(max, Math.sqrt(lateral / Math.max(kappa[i], 1e-6)));
+    v[i] = back[i] = Math.min(max, Math.sqrt(lateral / Math.max(kappa[i], 1e-6)));
   }
   // walk backwards, twice round the loop: never be going faster than you can brake from before the next bend
   for (let pass = 0; pass < 2; pass++) for (let i = N - 1; i >= 0; i--) {
     v[i] = Math.min(v[i], Math.sqrt(v[(i + 1) % N] ** 2 + 2 * decel * ds));
   }
-  const at = s => {
-    const f = (((s % LEN) + LEN) % LEN) / LEN * N, i = Math.floor(f) % N, k = f - Math.floor(f);
-    return v[i] + (v[(i + 1) % N] - v[i]) * k;
+  // and the same for someone riding the course the other way
+  for (let pass = 0; pass < 2; pass++) for (let i = 0; i < N; i++) {
+    back[i] = Math.min(back[i], Math.sqrt(back[(i - 1 + N) % N] ** 2 + 2 * decel * ds));
+  }
+  const at = (s, dir = 1) => {
+    const a = dir < 0 ? back : v, f = (((s % LEN) + LEN) % LEN) / LEN * N, i = Math.floor(f) % N, k = f - Math.floor(f);
+    return a[i] + (a[(i + 1) % N] - a[i]) * k;
   };
-  return { at, v, kappa };
+  return { at, v, back, kappa };
 }

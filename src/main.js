@@ -6,7 +6,8 @@ import { smooth } from './util/noise.js';
 import { COURSE, COURSE_NAMES, XMAS, SCENERY, START, real, line, mkPose } from './course/index.js';
 import { scene, camera, composer, sun, sunDir, hazeCol, st0, uTime, uMeadow, rainU, wx, setWeather, stepWeather,
   chunks, rays, lens, rig, drawHeadUnit, LAB } from './world/index.js';
-import { createRider, stepRider } from './sim/rider.js';
+import { createRider, stepRider, uTurn } from './sim/rider.js';
+import { createRiderView } from './riders/riderView.js';
 import { createLoop } from './sim/loop.js';
 import { MODELS, REAL } from './sim/physics.js';
 import { createRolling, wattsPerKg } from './sim/metrics.js';
@@ -34,7 +35,9 @@ const rider = createRider({ s: START, v: model === REAL ? 0 : 6, body: bodyOf(pr
 const cruise = SCENERY !== null ? 5 : null;                    // scenery mode: a steady 18 km/h, whatever the gradient
 const HZ = 60, power3s = createRolling(3, HZ), here = mkPose();
 const recorder = createRecorder({ startUnix: Math.floor(Date.now() / 1000), geo: real ? real.geo : null });
+let paused = false;                                            // P: stop the clock, the rider and the recording
 const loop = createLoop(h => {
+  if (paused) return;
   stepRider(rider, line, h, { model, limits, cruise });
   power3s.push(rider.target);
   if (SCENERY === null) recorder.step(rider, at(rider.s, here).p, h);
@@ -46,14 +49,40 @@ try {
 } catch (err) { setInterval(() => { if (document.hidden) loop.advance(performance.now()); }, 250); }
 
 /* ---------- controls: keys, slider, buttons ---------- */
-const skip = m => { rider.s = (((rider.s + m) % LEN) + LEN) % LEN; };
+const skip = m => { rider.s = (((rider.s + rider.dir * m) % LEN) + LEN) % LEN; };
 const setTarget = w => { rider.target = Math.min(900, Math.max(0, w)); $('pwr').value = rider.target; };
 addEventListener('keydown', e => {
   if (e.key === 'ArrowUp') setTarget(rider.target + 10);
   if (e.key === 'ArrowDown') setTarget(rider.target - 10);
-  if (e.key === 'ArrowRight') skip(250);
-  if (e.key === 'ArrowLeft') skip(-250);
+  if (e.key === ']' || e.key === 'PageUp') skip(250);
+  if (e.key === '[' || e.key === 'PageDown') skip(-250);
+  if (e.key === 'u' || e.key === 'U') uTurn(rider);
+  if (e.key === 'p' || e.key === 'P') setPaused(!paused);
+  if (e.key === 'v' || e.key === 'V') setView(view === 'third' ? 'first' : 'third');
 });
+// steering: hold left or right (or A and D) to move across your lane
+const held = new Set(), STEER = { ArrowLeft: -1, a: -1, A: -1, ArrowRight: 1, d: 1, D: 1 };
+const steerFromKeys = () => { let x = 0; for (const k of held) x += STEER[k]; rider.steer = Math.max(-1, Math.min(1, x)); };
+addEventListener('keydown', e => { if (e.key in STEER && !e.metaKey && !e.ctrlKey) { held.add(e.key); steerFromKeys(); if (e.key.startsWith('Arrow')) e.preventDefault(); } });
+addEventListener('keyup', e => { if (held.delete(e.key)) steerFromKeys(); });
+addEventListener('blur', () => { held.clear(); steerFromKeys(); });
+$('uturn').addEventListener('click', () => uTurn(rider));
+const setPaused = on => { paused = on; $('pause').textContent = on ? 'Resume' : 'Pause'; $('pause').classList.toggle('on', on); };
+$('pause').addEventListener('click', () => setPaused(!paused));
+
+// two views: behind your rider, or from the saddle. Kept in this browser.
+const VIEW_KEY = 'contour-view';
+let view = 'third';
+try { if (localStorage.getItem(VIEW_KEY) === 'first') view = 'first'; } catch {}
+if (SCENERY !== null || query.get('view') === 'first') view = 'first';
+if (query.get('view') === 'third') view = 'third';
+const riderView = createRiderView(scene);
+function setView(v) {
+  view = v; $('view').textContent = v === 'third' ? 'View: behind' : 'View: saddle';
+  try { localStorage.setItem(VIEW_KEY, v); } catch {}
+}
+setView(view);
+$('view').addEventListener('click', () => setView(view === 'third' ? 'first' : 'third'));
 $('pwr').addEventListener('input', e => { rider.target = +e.target.value; });
 $('skip').addEventListener('click', () => skip(250));
 $('course').textContent = 'Course: ' + COURSE_NAMES[COURSE];
@@ -71,7 +100,8 @@ addEventListener('keydown', e => { if ((e.key === 'h' || e.key === 'H') && !e.me
 const trainer = initTrainer({ rider, setTarget });
 initLog({ rider, course: COURSE, unit: () => unit });
 initHeart({ rider });
-initSettings({ profile, onChange: p => { profile = p; unit = units(p.units); rider.body = bodyOf(p); showUnits(); } });
+initSettings({ profile, onChange: p => { profile = p; unit = units(p.units); rider.body = bodyOf(p); showUnits(); riderView.dress(p); } });
+riderView.dress(profile);
 initSave({ recorder, course: COURSE });
 initVoice({ trainer, setWeather, skip, setClean, xmas: XMAS, lab: LAB });
 initAudio();
@@ -79,21 +109,23 @@ initAudio();
 // for checking from the console: window.ride.s, .goNear(x, z), .weather(name), .built, .recorder
 window.ride = rider;
 Object.assign(rider, {
-  haze: hazeCol, built: st0, recorder, weather: (n, i) => setWeather(n, i),
+  haze: hazeCol, built: st0, recorder, pause: on => setPaused(on), weather: (n, i) => setWeather(n, i),
   goNear: (x, z) => { const n = line.nearestS(x, z); rider.s = Math.max(0, n.s - 60); return Math.round(n.gap); },
 });
 
 /* ---------- drawing ---------- */
 const clock = new THREE.Clock();
-const pose = mkPose(), ahead = mkPose(), probe = mkPose(), look = new V3(), sunNdc = new V3(), fwd = new V3();
+const pose = mkPose(), ahead = mkPose(), probe = mkPose(), behind = mkPose(), look = new V3(), sunNdc = new V3(), fwd = new V3();
+const camPos = new V3(), camLook = new V3(), wantPos = new V3();
+let camSet = false;
 let lean = 0, phase = 0, huT = -1e9, first = true;
 // scenery mode's weather, in order, and how many seconds each one stays
 const SCENE_PLAN = XMAS ? [['snow', 280], ['mist', 100], ['snow', 180], ['golden', 95]] : [['golden', 200], ['mist', 110], ['rain', 130], ['overcast', 70], ['golden', 90]];
 let scene_t = 0, scene_i = 0;
-if (SCENERY !== null) { setClean(true); rider.target = rider.power = 90; if (SCENERY === 'nobars') rig.visible = false; }
+if (SCENERY !== null) { setClean(true); rider.target = rider.power = 90; }
 
 function frame() {
-  const dt = Math.min(clock.getDelta(), 0.05);
+  const rawDt = clock.getDelta(), dt = Math.min(rawDt, 0.05);
   uTime.value += dt;
   const now = performance.now();
   loop.advance(now);
@@ -104,27 +136,42 @@ function frame() {
     if (scene_t >= SCENE_PLAN[scene_i][1]) { scene_t = 0; scene_i = (scene_i + 1) % SCENE_PLAN.length; setWeather(SCENE_PLAN[scene_i][0]); }
   }
 
-  // camera: follow the lane, look down the road, lean into bends, rock with the pedals
-  at(s, pose); at(s + 9, ahead); at(s + 4, probe);
-  uMeadow.value.set(pose.p.x + pose.t.x * 78, pose.p.z + pose.t.z * 78);      // most of the meadow sits in front of you
-  const kappa = -(pose.t.z * probe.t.x - pose.t.x * probe.t.z) / 4;
+  // the road here, a little ahead, and a little behind, all in the rider's direction of travel
+  const d = rider.dir;
+  at(s, pose); at(s + d * 9, ahead); at(s + d * 4, probe);
+  uMeadow.value.set(pose.p.x + d * pose.t.x * 78, pose.p.z + d * pose.t.z * 78);      // most of the meadow sits in front of you
+  const kappa = -(pose.t.z * probe.t.x - pose.t.x * probe.t.z) / 4;                   // positive in a right-hand bend
   lean += (Math.atan(v * v * kappa / 9.81) * 0.55 - lean) * Math.min(1, dt * 3);
   const effort = Math.min(1, rider.power / 300);
   phase += dt * Math.PI * 2 * (rider.cadence != null ? rider.cadence : rider.power > 5 ? 60 + Math.min(40, rider.power / 8) : 0) / 60;
-  const sway = Math.sin(phase);
-  camera.position.copy(pose.p).addScaledVector(pose.r, rider.lane + sway * 0.004 * effort);
-  camera.position.y += 1.52;
-  look.copy(ahead.p).addScaledVector(ahead.r, rider.lane); look.y += 0.3;
-  camera.lookAt(look);
-  camera.rotateZ(-lean);
-  const fov = 62 + Math.min(v, 20) * 0.75;
+  const sway = Math.sin(phase), third = view === 'third' && riderView.ready;
+
+  // camera: from the saddle, or following a few metres behind the rider along the road they have just ridden
+  if (third) {
+    at(s - d * 5.2, behind);
+    wantPos.copy(behind.p).addScaledVector(behind.r, d * rider.lane * 0.9); wantPos.y += 2.05;
+    look.copy(pose.p).addScaledVector(pose.r, d * rider.lane).addScaledVector(pose.t, d * 4); look.y += 1.1;
+  } else {
+    wantPos.copy(pose.p).addScaledVector(pose.r, d * (rider.lane + sway * 0.004 * effort)); wantPos.y += 1.52;
+    look.copy(ahead.p).addScaledVector(ahead.r, d * rider.lane); look.y += 0.3;
+  }
+  // follow closely; swing round gently after a U-turn; jump straight there after a skip
+  const k = !camSet || wantPos.distanceTo(camPos) > 40 ? 1 : 1 - Math.exp(-Math.min(rawDt, 0.5) * (rider.uturn > 0 ? 2.5 : third ? 12 : 60));
+  camPos.lerp(wantPos, k); camLook.lerp(look, k); camSet = true;
+  camera.position.copy(camPos);
+  camera.lookAt(camLook);
+  if (!third) camera.rotateZ(-lean);
+  const fov = third ? 52 + Math.min(v, 20) * 0.5 : 62 + Math.min(v, 20) * 0.75;
   if (Math.abs(fov - camera.fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }
+  rig.visible = !third && SCENERY !== 'nobars';                 // the handlebars belong to the saddle view
+  riderView.rig.visible = third;
+  if (third) riderView.update(rider, pose, lean * 1.5, paused ? 0 : dt);
 
   stepWeather(dt);
-  rainU.uVel.value.copy(pose.t).multiplyScalar(v);
+  rainU.uVel.value.copy(pose.t).multiplyScalar(v * d);
 
   // sun shadow box travels with the rider, pushed forward into the view
-  sun.target.position.copy(pose.p).addScaledVector(pose.t, 70);
+  sun.target.position.copy(pose.p).addScaledVector(pose.t, 70 * d);
   sun.position.copy(sun.target.position).addScaledVector(sunDir, 350);
   let built = false;
   for (const c of chunks) {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildLine, valleyControl, mkPose } from '../src/course/line.js';
-import { createRider, stepRider } from '../src/sim/rider.js';
+import { createRider, stepRider, uTurn, LANE } from '../src/sim/rider.js';
 import { createLoop } from '../src/sim/loop.js';
 import { units } from '../src/sim/units.js';
 import { bodyOf, DEFAULT_PROFILE } from '../src/sim/profile.js';
@@ -57,6 +57,33 @@ describe('rider', () => {
     const r = createRider({ body, s: 700 });
     for (let i = 0; i < 30; i++) stepRider(r, line, 1 / 60, { cruise: 0.0001 });
     expect(r.grade).toBeCloseTo(line.at(700, mkPose()).t.y * 100 * (1 - Math.pow(1 - 2 / 60, 30)), 1);
+  });
+});
+
+describe('steering and U-turns', () => {
+  const run = (r, secs, opts) => { for (let i = 0; i < secs * 60; i++) stepRider(r, line, 1 / 60, opts); };
+  it('moves across the lane while a key is held, and stays in the lane', () => {
+    const r = createRider({ body, v: 8 }); r.steer = 1; run(r, 0.5);
+    expect(r.lane).toBeGreaterThan(-1.75); expect(r.slide).toBeGreaterThan(0);
+    run(r, 5); expect(r.lane).toBe(LANE.centre);
+    r.steer = -1; run(r, 6); expect(r.lane).toBe(LANE.edge);
+    r.steer = 0; run(r, 1); expect(r.lane).toBe(LANE.edge); expect(r.slide).toBe(0);
+  });
+  it('a U-turn reverses the ride and brings the rider back to their own side', () => {
+    const r = createRider({ body, v: 9, s: 1000 }); run(r, 1);
+    const s0 = r.s, g0 = line.at(r.s, mkPose()).t.y;
+    expect(uTurn(r)).toBe(true); expect(uTurn(r)).toBe(false);          // not again until this one is finished
+    expect(r.dir).toBe(-1); expect(r.lane).toBeCloseTo(1.75); expect(r.v).toBeLessThanOrEqual(2.5);
+    run(r, 4);
+    expect(r.s).toBeLessThan(s0); expect(r.uturn).toBe(0);
+    expect(r.lane).toBeLessThanOrEqual(LANE.centre); expect(r.lane).toBeGreaterThanOrEqual(LANE.edge);
+    expect(Math.sign(r.grade)).toBe(-Math.sign(line.at(r.s, mkPose()).t.y) || 0);
+    expect(g0).toBeDefined();
+    expect(uTurn(r)).toBe(true); expect(r.dir).toBe(1);
+  });
+  it('wraps the loop when riding backwards', () => {
+    const r = createRider({ body, v: 9, s: 3 }); uTurn(r); r.v = 9; run(r, 2);
+    expect(r.s).toBeGreaterThan(line.LEN - 40); expect(r.s).toBeLessThan(line.LEN);
   });
 });
 
