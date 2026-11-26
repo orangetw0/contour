@@ -1,11 +1,13 @@
 /* The course for this visit. Chosen by the address: ?course=valley (the invented valley), ?course=leckhampton
-   (a real road with surveyed terrain), or ?course=my:<id> (a route you imported, with invented terrain round it).
+   (a real road with surveyed terrain), ?course=r:<id> (a route that comes with Contour, with surveyed terrain) or ?course=my:<id> (a route you
+   imported, with invented terrain round it).
    Also ?theme=christmas and ?scenery. */
 import * as THREE from 'three';
 import { $, query } from '../util/dom.js';
 import { buildLine, valleyControl, mkPose } from './line.js';
 import { unpackRoute } from './route.js';
 import { generateTerrain, woodland } from './terrainGen.js';
+import { fbm, smooth } from '../util/noise.js';
 import { BUILT_IN, loadImported } from './library.js';
 
 const asked = query.get('course') || 'valley';
@@ -45,11 +47,24 @@ if (COURSE === 'leckhampton') {
   // an imported route: the road and its heights are real; the ground around it is invented to fit
   $('loading').textContent = `Building ${imported.name}…`;
   await new Promise(r => setTimeout(r, 30));                                       // let the message show before the work starts
-  const route = unpackRoute(imported), ground = generateTerrain(route.road);
+  const route = unpackRoute(imported), survey = imported.ground;
   closed = route.closed;
-  real = { ...ground, name: route.name, road: route.road, geo: route.geo, generated: true, osm: { buildings: [], trees: [], lines: [], woods: '', credit: '' },
-    wood: (x, z) => Math.abs(x) < ground.size / 2 && Math.abs(z) < ground.size / 2 && woodland(x, z) };
-  $('credit').textContent = (asked.startsWith('my:') ? 'Your route. ' : '') + 'The road and its gradients are real; the scenery around it is invented.';
+  let heights = null;
+  if (survey) {                 // a route that comes with surveyed ground: 16-bit heights in a file beside it
+    try { const res = await fetch(`routes/${asked.slice(2)}.dem`); if (res.ok) { const q = new Uint16Array(await res.arrayBuffer()); if (q.length === (survey.cells + 1) ** 2) heights = Float32Array.from(q, v => survey.min + v / 65535 * (survey.max - survey.min)); } } catch { heights = null; }
+  }
+  if (heights) {
+    const g = survey, half = g.size / 2, cut = 0.5 + (0.5 - g.trees) * 0.3;
+    real = { size: g.size, cells: g.cells, h: heights, demMin: g.min, demMax: g.max, name: route.name, road: route.road, geo: route.geo, water: g.water ?? null, osm: { buildings: [], trees: [], lines: [], woods: '', credit: '' } };
+    // which ground is wooded is not surveyed yet: trees stand in patches below the tree line, thinning as they near it
+    real.wood = (x, z) => Math.abs(x) < half && Math.abs(z) < half && (g.water == null || demH(x, z) > g.water + 1.5) && fbm(x / 210 + 17, z / 210 + 29, 3) > cut + 0.25 * smooth(g.treeline - 300, g.treeline, demH(x, z));
+    $('credit').textContent = (g.gpx ? 'Road from a GPX file. ' : 'Road © OpenStreetMap contributors. ') + 'Terrain: Copernicus DEM GLO-30 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA. Tree cover is estimated.';
+  } else {
+    const ground = generateTerrain(route.road);
+    real = { ...ground, name: route.name, road: route.road, geo: route.geo, generated: true, osm: { buildings: [], trees: [], lines: [], woods: '', credit: '' },
+      wood: (x, z) => Math.abs(x) < ground.size / 2 && Math.abs(z) < ground.size / 2 && woodland(x, z) };
+    $('credit').textContent = (asked.startsWith('my:') ? 'Your route. ' : '') + 'The road and its gradients are real; the scenery around it is invented.';
+  }
 }
 export { real, closed, mkPose };
 

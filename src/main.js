@@ -7,6 +7,7 @@ import { COURSE, COURSE_NAME, XMAS, SCENERY, START, real, line, mkPose } from '.
 import { initRoutes } from './app/routes.js';
 import { scene, camera, composer, sun, sunDir, hazeCol, st0, uTime, uMeadow, rainU, wx, setWeather, stepWeather,
   chunks, rays, lens, rig, drawHeadUnit, LAB } from './world/index.js';
+import { meshH } from './world/terrain.js';
 import { createRider, stepRider, uTurn } from './sim/rider.js';
 import { createRiderView } from './riders/riderView.js';
 import { createLoop } from './sim/loop.js';
@@ -178,6 +179,11 @@ function frame() {
   const k = !camSet || wantPos.distanceTo(camPos) > 40 ? 1 : 1 - Math.exp(-Math.min(rawDt, 0.5) * (rider.uturn > 0 ? 2.5 : third ? 12 : 60));
   camPos.lerp(wantPos, k); camLook.lerp(look, k); camSet = true;
   camera.position.copy(camPos);
+  if (third) {                           // on a hairpin the bank must not swallow the camera or hide the rider
+    let y = Math.max(camPos.y, meshH(camPos.x, camPos.z) + 1.3);
+    for (const t of [0.2, 0.4, 0.6, 0.8]) { const g = meshH(camPos.x + (camLook.x - camPos.x) * t, camPos.z + (camLook.z - camPos.z) * t) + 0.5; y = Math.max(y, Math.min(camLook.y + 9, (g - camLook.y * t) / (1 - t))); }
+    camera.position.y = y;
+  }
   camera.lookAt(camLook);
   if (!third) camera.rotateZ(-lean);
   const fov = third ? 52 + Math.min(v, 20) * 0.5 : 62 + Math.min(v, 20) * 0.75;

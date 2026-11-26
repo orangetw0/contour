@@ -1,6 +1,7 @@
 /* Adds a GPX file to the routes that come with Contour.
    Usage: node tools/add_route.mjs path/to/file.gpx route-id ["Name"] ["Note shown in the list"]
-   Writes public/routes/<route-id>.json and prints the line to add to ROUTE_FILES in src/course/library.js. */
+   Writes public/routes/<route-id>.json. To list it and give it surveyed ground, add { id, keep: true, note } to
+   tools/routes.mjs and run node tools/build_route.mjs <route-id>. */
 import fs from 'node:fs';
 import { parseGpx } from '../src/course/gpx.js';
 import { buildRoute, packRoute } from '../src/course/route.js';
@@ -11,4 +12,4 @@ const gpx = parseGpx(fs.readFileSync(file, 'utf8')), route = buildRoute(gpx.poin
 fs.mkdirSync(new URL('../public/routes/', import.meta.url), { recursive: true });
 fs.writeFileSync(new URL(`../public/routes/${id}.json`, import.meta.url), JSON.stringify(packed));
 console.log(`${route.road.length} points, ${(route.length / 1000).toFixed(1)} km, ${Math.round(route.ascent)} m up, ${(route.extent / 1000).toFixed(1)} km across, ${route.closed ? 'loop' : 'open'}, ${route.low.toFixed(0)}-${route.high.toFixed(0)} m`);
-console.log(`  { id: 'r:${id}', name: ${JSON.stringify(packed.name)}, note: ${JSON.stringify(note || '')}, km: ${packed.km}, up: ${packed.up}, closed: ${packed.closed}, at: ${JSON.stringify(packed.at)} },`);
+console.log(`Now add { id: '${id}', keep: true, note: ${JSON.stringify(note || '')} } to tools/routes.mjs and run: node tools/build_route.mjs ${id}`);

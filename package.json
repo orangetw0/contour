@@ -19,6 +19,7 @@
   "devDependencies": {
     "@garmin/fitsdk": "^21.222.0",
     "eslint": "^9.0.0",
+    "geotiff": "^3.0.5",
     "globals": "^15.0.0",
     "vite": "^6.0.0",
     "vitest": "^3.0.0"
