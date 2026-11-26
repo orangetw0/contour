@@ -1,4 +1,4 @@
-import { real, demH, nearRoad, XMAS } from '../course/index.js';
+import { real, demH, nearRoad, XMAS, N, P, R } from '../course/index.js';
 import { fbm, smooth, ridged } from '../util/noise.js';
 import * as THREE from 'three';
 import { sunFlat, sunDir, uSunAmt } from './sky.js';
@@ -28,6 +28,14 @@ const tPos = new Float32Array(TW * TW * 3), tUv = new Float32Array(TW * TW * 2),
 for (let iz = 0; iz < TW; iz++) for (let ix = 0; ix < TW; ix++) {
   const x = -TS / 2 + ix * TC, z = -TS / 2 + iz * TC, k = iz * TW + ix, h = terrainH(x, z);
   H[k] = h; tPos.set([x, h, z], k * 3); tUv.set([x / 4, z / 4], k * 2);
+}
+// The ground is coarser than the road, and on a hillside or between the legs of a hairpin a slope can end up lying
+// across the tarmac. Wherever a piece of ground stands above the road surface, press its corners down to just below it.
+if (real) for (let i = 0; i < N; i++) for (let o = -5.5; o <= 5.5; o += 2.75) {
+  const x = P[i].x + R[i].x * o, z = P[i].z + R[i].z * o, fx = (x + TS / 2) / TC, fz = (z + TS / 2) / TC, ix = Math.floor(fx), iz = Math.floor(fz);
+  if (ix < 0 || iz < 0 || ix >= TG || iz >= TG) continue;
+  const upper = (fx - ix) + (fz - iz) <= 1, top = P[i].y - 0.5;
+  for (const k of upper ? [iz * TW + ix, (iz + 1) * TW + ix, iz * TW + ix + 1] : [(iz + 1) * TW + ix + 1, (iz + 1) * TW + ix, iz * TW + ix + 1]) if (H[k] > top) { H[k] = top; tPos[k * 3 + 1] = top; }
 }
 const tIdx = new Uint32Array(TG * TG * 6);
 for (let iz = 0, q = 0; iz < TG; iz++) for (let ix = 0; ix < TG; ix++) {

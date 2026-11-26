@@ -128,6 +128,8 @@ initAudio();
 
 // for checking from the console: window.ride.s, .goNear(x, z), .weather(name), .built, .recorder
 window.ride = rider;
+// how far the ground stands above the tarmac at its worst, in metres (negative: the road is clear everywhere)
+rider.groundOver = () => { let worst = -Infinity; for (let i = 0; i < line.N; i++) for (const o of [-3.5, 0, 3.5]) worst = Math.max(worst, meshH(line.P[i].x + line.R[i].x * o, line.P[i].z + line.R[i].z * o) - line.P[i].y); return worst; };
 Object.assign(rider, {
   haze: hazeCol, built: st0, recorder, bots, pause: on => setPaused(on), weather: (n, i) => setWeather(n, i),
   goNear: (x, z) => { const n = line.nearestS(x, z); rider.s = Math.max(0, n.s - 60); return Math.round(n.gap); },
