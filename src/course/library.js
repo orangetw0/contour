@@ -1,9 +1,16 @@
 /* The routes you can ride: the ones that come with Contour, and the ones you have imported (kept in this browser). */
 const KEY = 'contour-routes';
 
+// id 'r:<file>' loads public/routes/<file>.json
+const ROUTE_FILES = [
+  { id: 'r:dunlap-roddy-lando', name: 'Dunlap Roddy, Lando, Airport', note: 'South Carolina, USA', km: 76.8, up: 670, closed: false, at: [34.8483, -81.0967] },
+];
+
 export const BUILT_IN = Object.freeze([
   { id: 'valley', name: 'Valley', note: 'An invented mountain valley', km: 3.1, up: 60, closed: true, at: null },
   { id: 'leckhampton', name: 'Leckhampton Hill', note: 'Gloucestershire, England · surveyed terrain', km: 11.9, up: 260, closed: true, at: [51.8684, -2.0647] },
+  // routes kept as files in public/routes, made from GPX with tools/add_route.mjs
+  ...ROUTE_FILES,
 ]);
 
 const read = storage => { try { const o = JSON.parse(storage.getItem(KEY)); return o && typeof o === 'object' ? o : {}; } catch { return {}; } };

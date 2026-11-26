@@ -11,6 +11,8 @@ import { BUILT_IN, loadImported } from './library.js';
 const asked = query.get('course') || 'valley';
 let imported = null;
 if (asked.startsWith('my:')) { try { imported = loadImported(localStorage, asked); } catch { imported = null; } }
+// a route that comes with Contour as a file
+if (/^r:[a-z0-9-]+$/.test(asked) && BUILT_IN.some(r => r.id === asked)) { try { const res = await fetch(`routes/${asked.slice(2)}.json`); if (res.ok) imported = await res.json(); } catch { imported = null; } }
 export const COURSE = imported ? asked : asked === 'leckhampton' ? 'leckhampton' : 'valley';
 export const COURSE_NAME = imported ? imported.name : BUILT_IN.find(r => r.id === COURSE).name;
 export const COURSE_NAMES = Object.fromEntries(BUILT_IN.map(r => [r.id, r.name]));
@@ -47,7 +49,7 @@ if (COURSE === 'leckhampton') {
   closed = route.closed;
   real = { ...ground, name: route.name, road: route.road, geo: route.geo, generated: true, osm: { buildings: [], trees: [], lines: [], woods: '', credit: '' },
     wood: (x, z) => Math.abs(x) < ground.size / 2 && Math.abs(z) < ground.size / 2 && woodland(x, z) };
-  $('credit').textContent = 'Your route. The road and its gradients are from your file; the scenery around it is invented.';
+  $('credit').textContent = (asked.startsWith('my:') ? 'Your route. ' : '') + 'The road and its gradients are real; the scenery around it is invented.';
 }
 export { real, closed, mkPose };
 

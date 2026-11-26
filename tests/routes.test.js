@@ -58,7 +58,8 @@ describe('building a route', () => {
   it('refuses routes that are too short or too spread out, saying why', () => {
     expect(() => buildRoute([{ lat: 45, lon: 6, ele: 1 }, { lat: 45.0005, lon: 6, ele: 2 }])).toThrow(/shorter/);
     expect(() => buildRoute([{ lat: 45, lon: 6, ele: 1 }, { lat: 45.5, lon: 6, ele: 2 }])).toThrow(RangeError);
-    expect(MAX_EXTENT).toBe(11000);
+    expect(buildRoute([{ lat: 45, lon: 6, ele: 1 }, { lat: 45.15, lon: 6, ele: 2 }]).extent).toBeGreaterThan(16000);
+    expect(MAX_EXTENT).toBe(25000);
   });
   it('survives being packed for storage and rebuilt', () => {
     const packed = packRoute('Test climb', route), again = unpackRoute(JSON.parse(JSON.stringify(packed)));
@@ -125,7 +126,7 @@ describe('open-ended roads', () => {
 
 describe('route library', () => {
   const store = () => { const m = new Map(); return { getItem: k => m.has(k) ? m.get(k) : null, setItem: (k, v) => m.set(k, v) }; };
-  it('lists what comes with Contour', () => { expect(BUILT_IN.map(r => r.id)).toEqual(['valley', 'leckhampton']); });
+  it('lists what comes with Contour', () => { expect(BUILT_IN.slice(0, 2).map(r => r.id)).toEqual(['valley', 'leckhampton']); for (const r of BUILT_IN.slice(2)) expect(r.id).toMatch(/^r:[a-z0-9-]+$/); });
   it('keeps, lists, loads and removes imported routes', () => {
     const s = store(), packed = packRoute('Test climb', buildRoute(makeClimb()));
     const a = saveImported(s, packed, 1000), b = saveImported(s, { ...packed, name: 'Second' }, 2000);

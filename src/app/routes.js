@@ -4,7 +4,7 @@ import land from 'world-atlas/land-110m.json';
 import { $, panelButton } from '../util/dom.js';
 import { BUILT_IN, listImported, saveImported, deleteImported } from '../course/library.js';
 import { parseGpx } from '../course/gpx.js';
-import { buildRoute, packRoute } from '../course/route.js';
+import { buildRoute, packRoute, MAX_EXTENT } from '../course/route.js';
 
 const W = 360, H = 180, esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // the world's land as one SVG path, drawn flat: longitude across, latitude up
@@ -26,7 +26,7 @@ export function initRoutes({ current, unit }) {
       BUILT_IN.map(row).join('') + (mine.length ? '<h3 style="margin-top:12px">Your routes</h3>' + mine.map(row).join('') : '') +
       `<label class="file">Add a route from a GPX file<input id="gpx" type="file" accept=".gpx,application/gpx+xml"></label>` +
       (message ? `<div class="note">${esc(message)}</div>` : '') +
-      `<div class="note">A GPX file from a ride you recorded or a route you planned gives you its road and its gradients. The scenery around it is invented, up to ${u.distance(11000).toFixed(0)} ${u.distanceLabel} across. Routes stay in this browser.</div>`;
+      `<div class="note">A GPX file from a ride you recorded or a route you planned gives you its road and its gradients. The scenery around it is invented. A route can cover up to ${u.distance(MAX_EXTENT).toFixed(0)} ${u.distanceLabel} of ground. Routes stay in this browser.</div>`;
     box.querySelectorAll('[data-go]').forEach(b => { b.onclick = () => go(b.dataset.go); });
     box.querySelectorAll('[data-del]').forEach(b => { b.onclick = () => { deleteImported(localStorage, b.dataset.del); if (b.dataset.del === current) go('valley'); else draw(); }; });
     $('gpx').onchange = async e => {

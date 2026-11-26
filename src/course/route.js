@@ -1,7 +1,7 @@
 /* Turns a line of latitude, longitude and height into a course: metres on a flat patch of ground centred on the
    route, evenly spaced points, heights smoothed enough to ride, and the numbers a rider wants to know. Pure maths. */
 const M_PER_DEG = 111194.9;                        // metres in a degree of latitude
-export const MAX_EXTENT = 11000;                   // metres: the biggest patch of world the ride can build for now
+export const MAX_EXTENT = 25000;                   // metres: the biggest patch of world the ride can build for now
 
 /* points: [{ lat, lon, ele }] in order. Returns { name, closed, geo, road: [[x, y, z]], length, ascent, descent, extent,
    centre: [lat, lon], low, high }. x is east, z is south, y is height, all in metres. */

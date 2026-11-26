@@ -6,7 +6,8 @@ import { fbm, ridged, smooth } from '../util/noise.js';
 export function generateTerrain(road, { margin = 900 } = {}) {
   let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
   for (const [x, , z] of road) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
-  const size = Math.ceil((Math.max(x1 - x0, z1 - z0) + 2 * margin) / 240) * 240, cell = size <= 6480 ? 10 : size <= 9600 ? 15 : 20, cells = Math.round(size / cell), w = cells + 1;
+  // the ground is a square grid of at most about 640 cells a side: 10 m cells for a single climb, coarser for a long ride
+  const need = Math.max(x1 - x0, z1 - z0) + 2 * margin, cell = Math.max(10, Math.ceil(need / 640 / 5) * 5), cells = Math.ceil(need / cell / 2) * 2, size = cells * cell, w = cells + 1;
   // the lie of the land: the flat slope that best follows the road's heights
   let sx = 0, sz = 0, sy = 0, sxx = 0, szz = 0, sxz = 0, sxy = 0, szy = 0; const n = road.length;
   for (const [x, y, z] of road) { sx += x; sz += z; sy += y; sxx += x * x; szz += z * z; sxz += x * z; sxy += x * y; szy += z * y; }
