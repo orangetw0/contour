@@ -47,7 +47,11 @@ function osrm(way, closed) {
   const names = []; for (const leg of r.routes[0].legs) for (const st of leg.steps) { const n = st.name || st.ref || '?', last = names[names.length - 1]; if (last && last[0] === n) last[1] += st.distance; else names.push([n, st.distance]); }
   if (process.env.NAMES === '2') for (const leg of r.routes[0].legs) for (const st of leg.steps) if (st.distance > 150) { const c = st.geometry.coordinates[st.geometry.coordinates.length >> 1]; console.log(`    ${st.name || st.ref || '?'} ${(st.distance / 1000).toFixed(1)} km  [${c[1].toFixed(4)}, ${c[0].toFixed(4)}]`); }
   if (process.env.NAMES) console.log('  ' + names.filter(n => n[1] > 60).map(n => `${n[0]} ${(n[1] / 1000).toFixed(1)}`).join(' > '));
-  return r.routes[0].geometry.coordinates.map(([lon, lat]) => ({ lat, lon }));
+  const out = r.routes[0].geometry.coordinates.map(([lon, lat]) => ({ lat, lon }));
+  // stretches the map marks as tunnel: the survey sees the mountain above them, not the road
+  let at = 0; const find = ([lon, lat]) => { let best = Infinity, k = at; for (let i = at; i < Math.min(out.length, at + 4000); i++) { const d = (out[i].lon - lon) ** 2 + (out[i].lat - lat) ** 2; if (d < best) { best = d; k = i; } } return k; };
+  for (const leg of r.routes[0].legs) for (const st of leg.steps) { const xs = st.intersections || []; xs.forEach((x, n) => { const a = find(x.location); at = a; if ((x.classes || []).includes('tunnel')) { const b = n + 1 < xs.length ? find(xs[n + 1].location) : find(st.geometry.coordinates[st.geometry.coordinates.length - 1]); for (let i = a; i <= b; i++) out[i].tunnel = true; } }); }
+  return out;
 }
 
 async function build(spec) {
@@ -63,11 +67,18 @@ async function build(spec) {
       for (let k = i + 1; k < pts.length && run < 4000; k++) { run += gap(pts[k - 1], pts[k]); if (k > i + 2 && run > 30 && gap(pts[i], pts[k]) < 7) j = k; }
       if (j > 0) { pts.splice(i + 1, j - i); if (++cut > 200) break; }
     }
+    // through a tunnel the road climbs evenly from one mouth to the other
+    for (let i = 0; i < pts.length; i++) if (pts[i].tunnel) { let j = i; while (j < pts.length - 1 && pts[j + 1].tunnel) j++; const a = Math.max(0, i - 2), b = Math.min(pts.length - 1, j + 2); for (let k = a + 1; k < b; k++) pts[k].ele = pts[a].ele + (pts[b].ele - pts[a].ele) * (k - a) / (b - a); if (j > i) console.log(`  tunnel: ${j - i + 1} points`); i = j; }
     if (spec.trim) {                       // a climb: keep only the road between its lowest and highest points
       let a = 0, b = 0; pts.forEach((p, i) => { if (p.ele < pts[a].ele) a = i; if (p.ele > pts[b].ele) b = i; });
       if (b > a) pts.splice(b + 1), pts.splice(0, a);
     }
     route = buildRoute(pts, { name: spec.name, smooth: spec.smooth || 140, loop: !!spec.loop });
+    // the survey is rougher than tarmac: no road here is steeper than about 14%, so ease any pitch beyond that into its neighbours
+    const rd = route.road, n = rd.length, cap = (spec.cap || 14) / 100, last = route.closed ? n : n - 1;
+    for (let pass = 0; pass < 3000; pass++) { let moved = false; for (let i = 0; i < last; i++) { const a = rd[i], b = rd[(i + 1) % n], d = Math.hypot(b[0] - a[0], b[2] - a[2]), over = Math.abs(b[1] - a[1]) - cap * d; if (over > 0.01) { const m = Math.sign(b[1] - a[1]) * over * 0.5; a[1] += m; b[1] -= m; moved = true; } } if (!moved) break; }
+    route.ascent = 0; route.low = Infinity; route.high = -Infinity;
+    rd.forEach((p, i) => { route.low = Math.min(route.low, p[1]); route.high = Math.max(route.high, p[1]); if (i && p[1] > rd[i - 1][1]) route.ascent += p[1] - rd[i - 1][1]; });
   }
   const road = route.road, g = route.geo;
   let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
@@ -114,5 +125,5 @@ for (const spec of ROUTES) {
   try { const row = await build(spec), at = list.findIndex(r => r.id === row.id); if (at >= 0) list[at] = row; else list.push(row); }
   catch (e) { console.error(`${spec.id}: FAILED ${e.message}`); }
 }
-const order = ROUTES.map(r => 'r:' + r.id); list.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+const order = ROUTES.map(r => 'r:' + r.id); list = list.filter(r => order.includes(r.id)); list.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
 fs.writeFileSync(listFile, `// Made by tools/build_route.mjs: the routes kept as files in public/routes. Edit tools/routes.mjs, not this.\nexport const ROUTE_FILES = [\n${list.map(r => '  ' + JSON.stringify(r) + ',').join('\n')}\n];\n`);

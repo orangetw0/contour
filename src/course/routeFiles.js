@@ -1,8 +1,5 @@
 // Made by tools/build_route.mjs: the routes kept as files in public/routes. Edit tools/routes.mjs, not this.
 export const ROUTE_FILES = [
-  {"id":"r:richmond-park","name":"Richmond Park","note":"London, England","km":17,"up":176,"closed":true,"at":[51.4375,-0.2698]},
-  {"id":"r:box-hill","name":"Box Hill","note":"Surrey, England","km":27.9,"up":413,"closed":true,"at":[51.262,-0.2961]},
-  {"id":"r:kwaremont-paterberg","name":"Oude Kwaremont and Paterberg","note":"Flanders, Belgium","km":10.7,"up":158,"closed":true,"at":[50.7785,3.5294]},
   {"id":"r:dunlap-roddy-lando","name":"Dunlap Roddy, Lando, Airport","note":"South Carolina, USA","km":76.7,"up":670,"closed":false,"at":[34.8483,-81.0966]},
   {"id":"r:cauberg-loop","name":"Cauberg Loop","note":"Valkenburg, Netherlands","km":10.9,"up":108,"closed":true,"at":[50.8667,5.8031]},
   {"id":"r:sa-calobra","name":"Sa Calobra","note":"Mallorca, Spain","km":10,"up":677,"closed":false,"at":[39.8389,2.806]},
@@ -15,8 +12,8 @@ export const ROUTE_FILES = [
   {"id":"r:trollstigen","name":"Trollstigen","note":"Møre og Romsdal, Norway","km":14.4,"up":751,"closed":false,"at":[62.4922,7.698]},
   {"id":"r:furkapass","name":"Furkapass from Realp","note":"Uri, Switzerland","km":11.9,"up":893,"closed":false,"at":[46.5858,8.4592]},
   {"id":"r:tremola","name":"Gotthard Tremola","note":"Ticino, Switzerland","km":13,"up":916,"closed":false,"at":[46.5414,8.5875]},
-  {"id":"r:lake-annecy","name":"Lake Annecy","note":"Haute-Savoie, France","km":40.4,"up":347,"closed":true,"at":[45.8404,6.1799]},
-  {"id":"r:cap-formentor","name":"Cap de Formentor","note":"Mallorca, Spain","km":19.9,"up":573,"closed":false,"at":[39.9336,3.1476]},
+  {"id":"r:lake-annecy","name":"Lake Annecy","note":"Haute-Savoie, France","km":40.4,"up":348,"closed":true,"at":[45.8404,6.1799]},
+  {"id":"r:cap-formentor","name":"Cap de Formentor","note":"Mallorca, Spain","km":19.9,"up":560,"closed":false,"at":[39.9336,3.1476]},
   {"id":"r:galibier","name":"Col du Galibier from Valloire","note":"Savoie, France","km":18.1,"up":1228,"closed":false,"at":[45.1149,6.4226]},
   {"id":"r:ventoux","name":"Mont Ventoux from Bédoin","note":"Vaucluse, France","km":21.8,"up":1590,"closed":false,"at":[44.1439,5.25]},
   {"id":"r:stelvio","name":"Passo dello Stelvio from Prato","note":"South Tyrol, Italy","km":25.1,"up":1871,"closed":false,"at":[46.574,10.5237]},
