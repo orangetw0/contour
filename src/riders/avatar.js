@@ -32,8 +32,9 @@ function measureHead(body, eyesMesh, joint) {
   return { skull, brow, eyes, neck: joint.Head.y };
 }
 
-/* kit: colours. sex, kg, heightM: the rider's build. skin: one of SKINS. geo: the bike's measurements (makeGeo). */
-export function createAvatar(gltf, { kit = KITS.red, sex = 'male', kg = 72, heightM = 1.78, skin = 'medium', geo = GEO } = {}) {
+/* kit: colours. sex, kg, heightM: the rider's build. skin: one of SKINS. geo: the bike's measurements (makeGeo).
+   wear: the season to dress for (summer, spring, autumn, winter). */
+export function createAvatar(gltf, { kit = KITS.red, sex = 'male', kg = 72, heightM = 1.78, skin = 'medium', geo = GEO, wear = 'summer' } = {}) {
   const model = cloneSkinned(gltf.scene), object = new THREE.Group();
   object.add(model); object.updateMatrixWorld(true);
   const bones = {}, rest = {}, joint = {};
@@ -44,7 +45,7 @@ export function createAvatar(gltf, { kit = KITS.red, sex = 'male', kg = 72, heig
   });
   // this rider's own body: the shared model reshaped for their height and weight
   const src = body.geometry, shape = shapeOf({ sex, kg, heightM }), names = body.skeleton.bones.map(b => b.name);
-  dress(body, joint, kit, (SKINS[skin] || SKINS.medium).gain, shape.girth.thigh);
+  dress(body, joint, kit, (SKINS[skin] || SKINS.medium).gain, shape.girth.thigh, wear);
   if (!topologies.has(src)) topologies.set(src, buildTopology(src.attributes.position.array, src.index.array));
   const keep = new Float32Array(src.attributes.position.count), part = src.attributes.aPart, head = src.attributes.aHead;
   for (let i = 0; i < keep.length; i++) keep[i] = Math.min(1, head.getX(i) * 1.5 + part.getZ(i) * 1.5);
@@ -60,7 +61,7 @@ export function createAvatar(gltf, { kit = KITS.red, sex = 'male', kg = 72, heig
   mine.boundingSphere = src.boundingSphere; mine.boundingBox = src.boundingBox;
   body.geometry = mine;
   addHeadGear(bones.Head, measureHead(body, eyesMesh || body, joint), kit);
-  addShoes(body, bones, names, joint.foot_l.y, kit);
+  addShoes(body, bones, names, joint.foot_l.y, kit, wear === 'winter');
   for (const s of ['_l', '_r']) rest['upperarm' + s].p.multiplyScalar(shape.shoulders);         // narrower or broader shoulders
   // height: the whole rider scales, and everything below works in the scaled size
   const tall = new THREE.Box3().setFromBufferAttribute(src.attributes.position).max.y, scale = heightM / tall;

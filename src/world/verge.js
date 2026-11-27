@@ -16,7 +16,8 @@ function grassTex() {
   for (let i = 0; i < 36; i++) {
     const x = 20 + rnd() * 216, h = 110 + rnd() * 140, lean = (rnd() - 0.5) * 90, w = 5 + rnd() * 5;
     const gr = g.createLinearGradient(0, 256, 0, 256 - h);
-    gr.addColorStop(0, '#23360f'); gr.addColorStop(0.6, '#5b7824'); gr.addColorStop(1, rnd() < 0.45 ? '#cdb968' : '#90a43c');
+    if (LOOK.snowy) { gr.addColorStop(0, '#4a3c22'); gr.addColorStop(0.6, '#a08650'); gr.addColorStop(1, rnd() < 0.45 ? '#dccb96' : '#b9a268'); }      // dead stalks standing out of the snow
+    else { gr.addColorStop(0, '#23360f'); gr.addColorStop(0.6, '#5b7824'); gr.addColorStop(1, rnd() < 0.45 ? '#cdb968' : '#90a43c'); }
     g.fillStyle = gr; g.beginPath(); g.moveTo(x - w / 2, 256);
     g.quadraticCurveTo(x + lean * 0.3, 256 - h * 0.6, x + lean, 256 - h);
     g.quadraticCurveTo(x + lean * 0.3 + w * 0.4, 256 - h * 0.6, x + w / 2, 256); g.fill();
@@ -31,7 +32,7 @@ const tuftGeo = (() => {
   return g;
 })();
 const grassMat = new THREE.MeshStandardMaterial({ map: grassTex(), alphaTest: 0.45, roughness: 1 });
-if (real) grassMat.color.setRGB(...LOOK.grass);
+if (real && !LOOK.snowy) grassMat.color.setRGB(...LOOK.blade);      // the season's green (under snow the stalks are painted as straw)
 grassMat.onBeforeCompile = s => {
   s.uniforms.uTime = uTime;
   s.vertexShader = 'uniform float uTime;\n' + s.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
@@ -43,7 +44,8 @@ grassMat.onBeforeCompile = s => {
 };
 const chunks = [];
 {
-  const PER = 40, COUNT = 7000, m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new V3(0, 1, 0), sc = new V3(), ps = new V3(), col = new THREE.Color();
+  const PER = 40, COUNT = LOOK.snowy ? 150 : 7000,         // under snow only a few tufts stand out of it
+     m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new V3(0, 1, 0), sc = new V3(), ps = new V3(), col = new THREE.Color();
   const build = c0 => {
     const mesh = new THREE.InstancedMesh(tuftGeo, grassMat, COUNT);
     for (let k = 0; k < COUNT; k++) {
@@ -54,8 +56,9 @@ const chunks = [];
       const tall = 0.28 + rnd() * 0.5 + (d > 5 ? rnd() * 0.25 : 0);
       ps.set(x, y - 0.03, z); q.setFromAxisAngle(up, rnd() * 6.283); sc.set(0.5 + rnd() * 0.5, tall, 0.5 + rnd() * 0.5);
       mesh.setMatrixAt(k, m4.compose(ps, q, sc));
-      mesh.setColorAt(k, col.setHSL(0.19 + rnd() * 0.07, 0.25 + rnd() * 0.25, 0.5 + rnd() * 0.25));
+      mesh.setColorAt(k, LOOK.snowy ? col.setScalar(0.7 + rnd() * 0.4) : col.setHSL(0.19 + rnd() * 0.07, 0.25 + rnd() * 0.25, 0.5 + rnd() * 0.25));
     }
+    if (LOOK.season === 'winter' && !LOOK.snowy && P[c0 + PER / 2].y > LOOK.snow + 150) mesh.count = 260;      // above the snow line on a road that starts below it: thin here too
     mesh.frustumCulled = false; mesh.receiveShadow = true; scene.add(mesh);
     return mesh;
   };

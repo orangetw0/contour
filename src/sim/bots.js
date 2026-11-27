@@ -1,7 +1,7 @@
 /* Other riders. Each bot is an ordinary rider (same physics, same drafting) with a small brain that sets its power
    and steering the way a person would: harder uphill, easing downhill, sitting on a wheel, pulling out to pass.
    Pacers hold a steady watts-per-kilo and lap the course for ever. */
-import { createRider, stepRider, LANE } from './rider.js';
+import { createRider, stepRider, LANE, laneSign } from './rider.js';
 import { gapAhead } from './draft.js';
 import { bodyFor } from './profile.js';
 
@@ -13,10 +13,10 @@ const KITS = ['red', 'blue', 'green', 'orange', 'white', 'black', 'purple', 'yel
 
 // rand: a function returning 0..1 (seeded, so a field of bots can be rebuilt the same)
 export function createBots(line, { humans = 14, pacers = true, near = 0, rand = Math.random } = {}) {
-  const bots = [], pick = a => a[Math.floor(rand() * a.length)];
+  const bots = [], pick = a => a[Math.floor(rand() * a.length)], mirror = laneSign(line);
   const add = (spec, s, dir = 1) => {
     const body = bodyFor(spec.kg, spec.bike || 'allround');
-    const r = createRider({ s, v: 6, power: spec.wkg * spec.kg * 0.7, lane: -1.75 + (rand() - 0.5) * 0.8, body });
+    const r = createRider({ s, v: 6, power: spec.wkg * spec.kg * 0.7, lane: (-1.75 + (rand() - 0.5) * 0.8) * mirror, body });
     Object.assign(r, { dir, bot: { ...spec, home: r.lane, clock: rand() * 1000, phase: rand() * 6.28, surge: 0, nextSurge: 40 + rand() * 140, effort: 0.75 }, name: spec.name, character: spec.character, kit: spec.kit, kg: spec.kg, heightM: spec.heightM, skin: spec.skin, bike: spec.bike || 'allround' });
     if (dir < 0) r.lane = r.bot.home;
     bots.push(r); return r;
@@ -55,17 +55,17 @@ export function stepBot(r, riders, line, dt, opts) {
     if (b.surge > 0) { b.surge -= dt; effort *= 1.4; }                    // now and then, a dig
     else if ((b.nextSurge -= dt) <= 0) { b.surge = 7 + (b.phase % 1) * 8; b.nextSurge = 60 + ((b.clock * 7.3) % 150); }
   }
-  // the wheel in front: sit on it, or pull out and pass if clearly faster
-  const a = ahead(r, riders, line, 9);
-  let want = b.home;
+  // the wheel in front: sit on it, or pull out and pass if clearly faster (lanes here are worked as if riders kept left)
+  const a = ahead(r, riders, line, 9), mirror = laneSign(line);
+  let want = b.home * mirror;
   if (a) {
-    const closing = r.v - a.rider.v, side = Math.abs(a.rider.lane - r.lane);
-    if (closing > 0.35 && a.gap < 7) want = Math.min(LANE.centre, a.rider.lane + 0.95);            // pass on the outside
-    else if (a.gap < 5) { want = a.rider.lane; if (!b.pacer && a.gap < 2.6 && r.drag < 0.85) effort *= 0.86; }   // sheltered: ease off and sit in
+    const closing = r.v - a.rider.v, side = Math.abs(a.rider.lane - r.lane), theirs = a.rider.lane * mirror;
+    if (closing > 0.35 && a.gap < 7) want = Math.min(LANE.centre, theirs + 0.95);            // pass on the outside
+    else if (a.gap < 5) { want = theirs; if (!b.pacer && a.gap < 2.6 && r.drag < 0.85) effort *= 0.86; }   // sheltered: ease off and sit in
     if (a.gap < 1.9 && side < 0.45 && closing > 0) r.v = Math.max(a.rider.v, r.v - 4 * dt);         // don't ride through them
   }
   b.effort += (effort - b.effort) * Math.min(1, dt * 0.8);
   r.target = ftp * b.effort;
-  r.steer = Math.max(-1, Math.min(1, (want - r.lane) * 1.6));
+  r.steer = Math.max(-1, Math.min(1, (want - r.lane * mirror) * 1.6)) * mirror;
   stepRider(r, line, dt, opts);
 }

@@ -28,6 +28,7 @@ import { initCompany } from './app/company.js';
 import { createBots, stepBot } from './sim/bots.js';
 import { createTally } from './sim/tally.js';
 import { initHud } from './app/hud.js';
+import { initFinish } from './app/finish.js';
 import { initStart } from './app/start.js';
 import { BUILT_IN } from './course/library.js';
 import { draftOf } from './sim/draft.js';
@@ -40,7 +41,7 @@ if (query.get('units')) profile = { ...profile, units: query.get('units') === 'i
 let unit = units(profile.units);
 const model = MODELS[query.get('physics')] || REAL;                // ?physics=legacy: the original ride's rules
 const limits = buildSpeedLimit(line, { decel: REAL.brakeDecel, max: REAL.maxSpeed });
-const rider = createRider({ s: START, v: model === REAL ? 0 : 6, body: bodyOf(profile) });
+const rider = createRider({ s: START, v: model === REAL ? 0 : 6, lane: 1.75 * line.keep, body: bodyOf(profile) });      // on the side of the road this country rides on
 const cruise = SCENERY !== null ? 5 : null;                    // scenery mode: a steady 18 km/h, whatever the gradient
 const HZ = 60, power3s = createRolling(3, HZ), here = mkPose();
 const recorder = createRecorder({ startUnix: Math.floor(Date.now() / 1000), geo: real ? real.geo : null });
@@ -62,6 +63,7 @@ const loop = createLoop(h => {
   stepRider(rider, line, h, { model, limits, cruise });
   power3s.push(rider.target);
   tally.step(rider.target, rider.v, rider.altitude, h);
+  finish.step();                                               // under an arch: the lap or leg just ridden comes up
   if (SCENERY === null) recorder.step(rider, at(rider.s, here).p, h);
 }, { hz: HZ });
 // Browsers stop drawing a hidden tab, and slow its timers. A worker's timer keeps going, so the ride does too.
@@ -128,19 +130,25 @@ if (bots.length) company = initCompany({ scene, camera, line, bots, rider, unit:
   onJoin: p => { Object.assign(rider, { dir: p.dir, s: line.wrap(p.s - p.dir * 4), lane: p.lane, v: p.v, uturn: 0 }); } });
 else $('pacerbtn').remove();
 const hud = initHud({ rider, line, bots, tally, unit: () => unit, name: COURSE_NAME });
+const finish = initFinish({ rider, line, tally, unit: () => unit, name: COURSE_NAME, start: START });
 // the first screen holds the ride until you press Ride
 if (initStart({ name: COURSE_NAME, note: (BUILT_IN.find(r => r.id === COURSE) || {}).note, routes, skip: SCENERY !== null,
   riderLine: () => `${profile.riderKg.toFixed(0)} kg · ${profile.bike} bike · ${profile.units}`, onRide: () => setPaused(false) })) setPaused(true);
 initVoice({ trainer, setWeather, skip, setClean, xmas: XMAS, lab: LAB });
 initAudio();
 
-// for checking from the console: window.ride.s, .goNear(x, z), .weather(name), .built, .recorder
+// for checking from the console: window.ride.s, .goNear(x, z), .where(), .lookFrom(from, to), .weather(name), .built, .recorder
+let eye = null;
 window.ride = rider;
 // how far the ground stands above the tarmac at its worst, in metres (negative: the road is clear everywhere)
 rider.groundOver = () => { let worst = -Infinity; for (let i = 0; i < line.N; i++) for (const o of [-3.5, 0, 3.5]) worst = Math.max(worst, meshH(line.P[i].x + line.R[i].x * o, line.P[i].z + line.R[i].z * o) - line.P[i].y); return worst; };
 Object.assign(rider, {
   haze: hazeCol, built: st0, recorder, bots, pause: on => setPaused(on), weather: (n, i) => setWeather(n, i),
   goNear: (x, z) => { const n = line.nearestS(x, z); rider.s = Math.max(0, n.s - 60); return Math.round(n.gap); },
+  // hold the camera at one place looking at another (each [x, y, z], y metres above the road where the rider is), to look at the land from the air; no arguments lets it go
+  lookFrom: (from, to) => { eye = from && to ? [from, to] : null; },
+  farEnd: () => line.LEN,
+  where: () => { const p = at(rider.s, mkPose()); return { x: p.p.x, y: p.p.y, z: p.p.z, tx: p.t.x, tz: p.t.z, rx: p.r.x, rz: p.r.z }; },       // the road under the rider, and which way it runs
 });
 
 /* ---------- drawing ---------- */
@@ -159,7 +167,7 @@ function frame() {
   uTime.value += dt;
   const now = performance.now();
   loop.advance(now);
-  const v = rider.v, s = rider.s + v * loop.leftover();        // draw a little ahead of the last step, so motion stays smooth
+  const v = rider.v, s = rider.s + rider.dir * v * loop.leftover();        // draw a little ahead of the last step, so motion stays smooth
 
   if (SCENERY !== null) {
     scene_t += dt;
@@ -195,6 +203,7 @@ function frame() {
     camera.position.y = y;
   }
   camera.lookAt(camLook);
+  if (eye) { camera.position.set(eye[0][0], pose.p.y + eye[0][1], eye[0][2]); camera.lookAt(eye[1][0], pose.p.y + eye[1][1], eye[1][2]); }
   if (!third) camera.rotateZ(-lean);
   const fov = third ? 52 + Math.min(v, 20) * 0.5 : 62 + Math.min(v, 20) * 0.75;
   if (Math.abs(fov - camera.fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }

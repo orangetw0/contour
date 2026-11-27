@@ -1,4 +1,5 @@
 import { XMAS } from '../course/index.js';
+import { LOOK } from './look.js';
 import { V3 } from './shared.js';
 import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
@@ -50,7 +51,7 @@ Object.assign(sun.shadow.camera, { left: -110, right: 110, top: 110, bottom: -11
 sun.shadow.bias = -0.0004;
 sun.shadow.normalBias = 0.6;
 scene.add(sun, sun.target);
-const hemi = new THREE.HemisphereLight(XMAS ? 0xa6b4ea : 0xa9b8ee, XMAS ? 0x9aa2b6 : 0x6b563a, 2.2);
+const hemi = new THREE.HemisphereLight(XMAS ? 0xa6b4ea : 0xa9b8ee, LOOK.snowy ? 0x9aa2b6 : 0x6b563a, 2.2);        // snow on the ground lights things from below
 scene.add(hemi);
 
 const hazeLum = (hazeCol.r + hazeCol.g + hazeCol.b) / 3;

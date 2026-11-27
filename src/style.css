@@ -22,6 +22,14 @@ canvas#c { display: block; width: 100vw; height: 100vh; }
 #climbbox[hidden], #mapbox[hidden] { display: none; }
 #climb { width: 100%; height: auto; display: block; }
 #climbcap { display: flex; justify-content: space-between; font-size: 11px; letter-spacing: .04em; opacity: .85; margin-top: 4px; }
+/* the tab that tucks the climb away: a drawer handle hanging under it, or under the ride's numbers when it is shut */
+#climbtab { margin-top: -9px; width: 52px; height: 17px; padding: 0; display: grid; place-items: center; cursor: pointer; pointer-events: auto; color: #fff;
+  background: rgba(20,16,12,.62); border: 1px solid rgba(255,255,255,.22); border-top: 0; border-radius: 0 0 10px 10px; backdrop-filter: blur(8px); }
+#climbtab[hidden] { display: none; }
+#climbtab:hover { background: rgba(60,48,36,.8); }
+#climbtab:focus-visible { outline: 2px solid #ffcf8f; outline-offset: 1px; }
+#climbtab i { width: 6px; height: 6px; border: solid currentColor; border-width: 2px 0 0 2px; transform: translateY(2px) rotate(45deg); opacity: .85; }
+#climbtab.shut i { transform: translateY(-2px) rotate(225deg); }
 #mapbox { width: 190px; padding: 6px; box-sizing: border-box; }
 #mini { width: 100%; height: auto; display: block; }
 #mapcap { display: flex; justify-content: space-between; gap: 8px; font-size: 10px; letter-spacing: .04em; opacity: .85; padding: 4px 4px 0; }
@@ -98,3 +106,17 @@ body.clean #chat { display: none; }
 #start-routes label.file { display: block; margin-top: 12px; border: 1px dashed rgba(255,255,255,.45); border-radius: 10px; padding: 9px 12px; cursor: pointer; text-align: center; } #start-routes label.file input { display: none; }
 body.start .panel { top: 50%; bottom: auto !important; left: 50%; right: auto; transform: translate(-50%, -50%); background: rgba(20,16,12,.95); }
 @media (max-width: 700px) { #start-box { flex-direction: column; } #start-side { flex: none; } }
+/* the summary under a start/finish arch: the lap or leg just ridden, for five seconds */
+#finish { position: fixed; top: 232px; left: 50%; transform: translate(-50%, -6px); z-index: 10; min-width: 300px; max-width: calc(100vw - 32px); box-sizing: border-box;
+  padding: 12px 20px 14px; text-align: center; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity .6s, transform .6s, visibility 0s .6s;
+  background: rgba(20,16,12,.72); border: 1px solid rgba(255,207,143,.55); border-radius: 14px; backdrop-filter: blur(8px); font-variant-numeric: tabular-nums; }
+#finish.on { opacity: 1; visibility: visible; transform: translate(-50%, 0); transition: opacity .35s, transform .35s; }
+#finish h2 { margin: 0; font-size: 19px; font-weight: 500; letter-spacing: .03em; color: #ffcf8f; }
+#finish p { margin: 3px 0 0; font-size: 9px; letter-spacing: .14em; text-transform: uppercase; opacity: .7; }
+#finish .figs { display: flex; justify-content: center; gap: 24px; margin-top: 10px; }
+#finish .figs b { display: block; font-size: 24px; font-weight: 400; }
+#finish .figs span { font-size: 9px; letter-spacing: .14em; text-transform: uppercase; opacity: .7; }
+#finish .figs + p { margin-top: 10px; padding-top: 9px; border-top: 1px solid rgba(255,255,255,.18); }
+#finish .figs.all { margin-top: 6px; } #finish .figs.all b { font-size: 17px; }
+body.clean #finish, body.start #finish { display: none; }
+@media (max-width: 760px) { #finish { top: 150px; min-width: 0; padding: 10px 14px 12px; } #finish .figs { gap: 14px; } #finish .figs b { font-size: 19px; } }

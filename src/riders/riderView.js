@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { createBike, makeGeo, BIKE_STYLES } from './bike.js';
 import { loadCharacter, createAvatar, KITS } from './avatar.js';
+import { LOOK } from '../world/look.js';
 
 const V3 = THREE.Vector3, m = new THREE.Matrix4(), left = new V3(), up = new V3(), fwd = new V3(), q = new THREE.Quaternion(), AXIS_Z = new V3(0, 0, 1), AXIS_Y = new V3(0, 1, 0);
 
@@ -31,7 +32,7 @@ export function createRiderView(scene, { label = '' } = {}) {
     if (want !== key) return;                                      // changed again while loading
     rig.clear();
     const geo = makeGeo(heightM / 1.8);                             // a frame to fit
-    bike = createBike({ frame: colours.bike, geo, style: BIKE_STYLES[bikeKey] || 'climbing' }); avatar = createAvatar(gltf, { kit: colours, sex: character, kg, heightM, skin, geo });
+    bike = createBike({ frame: colours.bike, geo, style: BIKE_STYLES[bikeKey] || 'climbing' }); avatar = createAvatar(gltf, { kit: colours, sex: character, kg, heightM, skin, geo, wear: LOOK.wear });      // dressed for the season
     tag = null;
     rig.add(bike.object, avatar.object);
     if (label) { tag = nameTag(label); tag.position.y = heightM + 0.42; rig.add(tag); }

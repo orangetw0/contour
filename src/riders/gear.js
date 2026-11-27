@@ -73,8 +73,9 @@ export function addHeadGear(headBone, head, kit) {
 /* Shoes: a road cycling shoe built round each foot from the foot's own length and width. The shape is a real
    shoe's: a rounded toe box, widest at the ball, a snug heel cup, a low collar under the ankle bone and a stiff sole
    with a little toe spring. Details: a dark sole with a cleat under the ball, a padded collar, a tongue, two closure
-   dials on the outside with their wires across the instep, and a coloured heel. */
-export function addShoes(body, bones, names, ankleY, kit) {
+   dials on the outside with their wires across the instep, and a coloured heel.
+   covered: winter overshoes are pulled over them, so all that shows is black neoprene, the heel's colour and the sole. */
+export function addShoes(body, bones, names, ankleY, kit, covered = false) {
   const pos = body.geometry.attributes.position, si = body.geometry.attributes.skinIndex, sw = body.geometry.attributes.skinWeight, pts = [], p = new V3(), box = new THREE.Box3();
   for (let i = 0; i < pos.count; i++) {
     let w = 0; for (let k = 0; k < 4; k++) if (FOOT.test(names[si.getComponent(i, k)])) w += sw.getComponent(i, k);
@@ -85,7 +86,7 @@ export function addShoes(body, bones, names, ankleY, kit) {
   // along the shoe from heel (0) to toe (1): half-width as a share of the widest point, and height of the upper
   const WIDTH = [[0, 0.3], [0.03, 0.56], [0.1, 0.7], [0.3, 0.76], [0.5, 0.86], [0.68, 1], [0.8, 0.96], [0.9, 0.8], [0.96, 0.56], [1, 0.26]];
   const HEIGHT = [[0, 0.05], [0.06, 0.066], [0.2, 0.07], [0.36, 0.074], [0.5, 0.064], [0.66, 0.05], [0.82, 0.04], [0.94, 0.031], [1, 0.02]];
-  const N = 20, M = 20, vp = [], col = [], idx = [], white = new THREE.Color(0xf5f5f3), dark = new THREE.Color(0x0b0b0d), heel = new THREE.Color(kit.jersey), tongue = new THREE.Color(0xdcdcd8);
+  const N = 20, M = 20, vp = [], col = [], idx = [], white = new THREE.Color(covered ? 0x17171b : 0xf5f5f3), dark = new THREE.Color(0x0b0b0d), heel = new THREE.Color(kit.jersey), tongue = new THREE.Color(covered ? 0x17171b : 0xdcdcd8);
   const topAt = f => { let t = sole + lerp(HEIGHT, f); const z = z0 + len * f; for (const q of pts) if (Math.abs(q.z - z) < 0.016) t = Math.max(t, q.y + 0.005); return Math.min(t, ankleY - 0.012); };
   const spring = f => 0.007 * Math.max(0, (f - 0.72) / 0.28) ** 2;                    // the toe lifts a little off the ground
   for (let i = 0; i < N; i++) {
@@ -102,10 +103,10 @@ export function addShoes(body, bones, names, ankleY, kit) {
   for (let i = 0; i < N - 1; i++) for (let k = 0; k < M; k++) { const a = i * M + k, b = i * M + (k + 1) % M; idx.push(a, b, a + M, b, b + M, a + M); }
   for (const [o, flip] of [[0, true], [(N - 1) * M, false]]) for (let k = 1; k < M - 1; k++) idx.push(o, flip ? o + k + 1 : o + k, flip ? o + k : o + k + 1);
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(vp, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); geo.setIndex(idx); geo.computeVertexNormals();
-  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, side: THREE.DoubleSide }), black = new THREE.MeshStandardMaterial({ color: 0x0c0c0e, roughness: 0.5, metalness: 0.3 }), cleatMat = new THREE.MeshStandardMaterial({ color: 0xd9a514, roughness: 0.6 });
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: covered ? 0.75 : 0.4, side: THREE.DoubleSide }), black = new THREE.MeshStandardMaterial({ color: 0x0c0c0e, roughness: 0.5, metalness: 0.3 }), cleatMat = new THREE.MeshStandardMaterial({ color: 0xd9a514, roughness: 0.6 });
   // the extras, placed on the left shoe and mirrored for the right: [mesh, x, y, z, tilt]
   const zAt = f => z0 + len * f, parts = [];
-  for (const f of [0.47, 0.63]) {                                                      // two dials on the outside, each with a wire across the instep
+  for (const f of covered ? [] : [0.47, 0.63]) {                                                      // two dials on the outside, each with a wire across the instep
     const hw = W * lerp(WIDTH, f), top = topAt(f), y = sole + (top - sole) * 0.7;
     parts.push([new THREE.Mesh(new THREE.CylinderGeometry(0.0095, 0.0105, 0.007, 16).rotateZ(Math.PI / 2), black), cx + hw * 0.86, y, zAt(f), -0.55]);
     const wire = new THREE.Mesh(new THREE.TorusGeometry(hw * 0.74, 0.0011, 5, 14, Math.PI * 0.72), black); wire.scale.y = (top - sole) / hw * 0.9;

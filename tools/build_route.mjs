@@ -1,6 +1,7 @@
 /* Builds a route that comes with Contour from the real world: the road from OpenStreetMap (through the OSRM router),
    heights and the ground around it from the Copernicus 30 m elevation model.
    Usage: node tools/build_route.mjs <route-id | all>      (routes are listed in tools/routes.mjs)
+          GROUND=1 node tools/build_route.mjs <route-id | all>     rebuilds only the ground, keeping each road as it is
    Writes public/routes/<id>.json (the road), public/routes/<id>.dem (the ground, 16-bit heights) and
    src/course/routeFiles.js (the list the app shows). Downloads are kept in /tmp/dem. */
 import fs from 'node:fs';
@@ -56,7 +57,9 @@ function osrm(way, closed) {
 
 async function build(spec) {
   let route;
-  if (spec.keep) route = unpackRoute(JSON.parse(fs.readFileSync(new URL(`${spec.id}.json`, OUT), 'utf8')));       // a GPX route already in the repo: keep its road and heights
+  // GROUND=1: rebuild only the ground, under the road each route already has (no call to the router, so the roads cannot shift)
+  const groundOnly = !!process.env.GROUND, old = spec.keep || groundOnly ? JSON.parse(fs.readFileSync(new URL(`${spec.id}.json`, OUT), 'utf8')) : null;
+  if (old) route = unpackRoute(old);       // a GPX route already in the repo, or ground only: keep the road and its heights
   else {
     const pts = osrm(spec.way, !!spec.loop);
     for (const p of pts) p.ele = await height(p.lat, p.lon);
@@ -87,15 +90,18 @@ async function build(spec) {
   // nearest road point, found quickly
   const B = 80, bins = new Map(), key = (i, j) => i * 100003 + j;
   road.forEach((p, k) => { const q = key(Math.floor(p[0] / B), Math.floor(p[2] / B)); (bins.get(q) || bins.set(q, []).get(q)).push(k); });
-  const reach = Math.max(70, cell * 4), near = Math.max(8, cell * 0.8), R = Math.ceil(reach / B);
+  const reach = Math.max(60, cell * 3), R = Math.ceil(reach / B);
+  // how far the survey stands above (or below) the road at each point of it: the survey is coarser than a road, and a road's heights are smoothed
+  const off = []; for (const p of road) off.push(await height(g.lat0 + g.m[1] * p[2], g.lon0 + g.m[2] * p[0]) - p[1]);
   const h = new Float32Array(w * w); let lo = Infinity, hi = -Infinity;
   for (let j = 0; j < w; j++) for (let i = 0; i < w; i++) {
     const x = -size / 2 + i * cell, z = -size / 2 + j * cell;
     let y = await height(g.lat0 + g.m[1] * z, g.lon0 + g.m[2] * x);
-    // the survey is coarser than a road: beside the tarmac the ground takes the road's height and eases out to the survey
-    let best = Infinity, ry = 0; const bi = Math.floor(x / B), bj = Math.floor(z / B);
-    for (let di = -R; di <= R; di++) for (let dj = -R; dj <= R; dj++) { const list = bins.get(key(bi + di, bj + dj)); if (list) for (const k of list) { const d2 = (road[k][0] - x) ** 2 + (road[k][2] - z) ** 2; if (d2 < best) { best = d2; ry = road[k][1]; } } }
-    if (best < reach * reach) y = ry + (y - ry) * smooth(near, reach, Math.sqrt(best));
+    // Near the road the whole hillside is lifted or lowered by that much, easing out with distance, so the land meets the road where the
+    // road runs and keeps its own slope across it. (The ride then cuts the road's bench and banks into that slope: src/world/terrain.js.)
+    let best = Infinity, lift = 0; const bi = Math.floor(x / B), bj = Math.floor(z / B);
+    for (let di = -R; di <= R; di++) for (let dj = -R; dj <= R; dj++) { const list = bins.get(key(bi + di, bj + dj)); if (list) for (const k of list) { const d2 = (road[k][0] - x) ** 2 + (road[k][2] - z) ** 2; if (d2 < best) { best = d2; lift = off[k]; } } }
+    if (best < reach * reach) y -= lift * (1 - smooth(0, reach, Math.sqrt(best)));
     h[j * w + i] = y; lo = Math.min(lo, y); hi = Math.max(hi, y);
   }
   // lakes and the sea are dead level in the survey: find the commonest level and sink that water's bed below it
@@ -108,10 +114,12 @@ async function build(spec) {
   if (water !== null) { for (let k = 0; k < h.length; k++) if (wet[k] && Math.abs(h[k] - water) < 0.8) h[k] = water - 6; lo = Math.min(lo, water - 6); }
   const q = new Uint16Array(w * w); for (let k = 0; k < q.length; k++) q[k] = Math.round((h[k] - lo) / (hi - lo || 1) * 65535);
   fs.writeFileSync(new URL(`${spec.id}.dem`, OUT), Buffer.from(q.buffer));
-  const packed = packRoute(spec.name || route.name, route);
-  packed.ground = { size, cells, min: +lo.toFixed(1), max: +hi.toFixed(1), treeline: spec.treeline ?? 1900, trees: spec.trees ?? 0.4, look: { region: spec.region || 'temperate', road: spec.road || 'main' }, ...(spec.keep ? { gpx: true } : {}), ...(water !== null ? { water } : {}) };
+  const packed = groundOnly ? old : packRoute(spec.name || route.name, route);
+  if (groundOnly) { const { water: _was, ...kept } = old.ground; packed.ground = { ...kept, size, cells, min: +lo.toFixed(1), max: +hi.toFixed(1), ...(water !== null ? { water } : {}) }; }
+  else packed.ground = { size, cells, min: +lo.toFixed(1), max: +hi.toFixed(1), treeline: spec.treeline ?? 1900, trees: spec.trees ?? 0.4, look: { region: spec.region || 'temperate', road: spec.road || 'main' }, ...(spec.keep ? { gpx: true } : {}), ...(water !== null ? { water } : {}) };
   fs.writeFileSync(new URL(`${spec.id}.json`, OUT), JSON.stringify(packed));
   const grade = route.closed ? '' : `, ${(100 * (route.high - route.low) / route.length).toFixed(1)}% mean`;
+  { const m = off.map(Math.abs).sort((p, q) => p - q); console.log(`  survey against road: median ${m[m.length >> 1].toFixed(1)} m, 95% within ${m[Math.floor(m.length * 0.95)].toFixed(1)} m, worst ${m[m.length - 1].toFixed(1)} m`); }
   console.log(`${spec.id}: ${packed.km} km, ${packed.up} m up, ${route.low.toFixed(0)}-${route.high.toFixed(0)} m${grade}, ${(route.extent / 1000).toFixed(1)} km across, ${cell} m cells x ${cells}, ${route.closed ? 'loop' : 'open'}${water !== null ? `, water at ${water} m` : ''}`);
   return { id: 'r:' + spec.id, name: packed.name, note: spec.note || '', km: packed.km, up: packed.up, closed: packed.closed, at: packed.at };
 }

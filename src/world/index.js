@@ -8,3 +8,4 @@ export { wx, setWeather, stepWeather, LAB } from './weather.js';
 export { chunks } from './verge.js';
 export { rig, drawHeadUnit } from './cockpit.js';
 import './water.js';
+import './arch.js';

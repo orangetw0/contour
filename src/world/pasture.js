@@ -6,6 +6,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { canvas2d } from '../util/dom.js';
 import { TS, TC, TG, TW, tPos, tCol, meshH } from './terrain.js';
 import { scene } from './renderer.js';
+import { LOOK } from './look.js';
 import './verge.js';
 
 /* ---------- 19th-century touches (real courses): sheep on the hill, hay stooks in the vale ---------- */
@@ -59,7 +60,7 @@ if (real && real.pastoral) {
     if (P[i].y > 150) continue;
     const off = (rnd() < 0.5 ? -1 : 1) * (48 + rnd() * 50), x = P[i].x + R[i].x * off, z = P[i].z + R[i].z * off;
     if (!open(x, z) || roadGap(x, z) < 40 || slopeAt(x, z) > 0.1 || stamps.some(s => Math.hypot(s.x - x, s.z - z) < 110)) continue;
-    stamps.push({ x, z, r: 46, amt: 0.5 }); tint(x, z, 46, [1.5, 1.22, 0.6]); fields++;
+    stamps.push({ x, z, r: 46, amt: 0.5 }); if (!LOOK.snowy) tint(x, z, 46, [1.5, 1.22, 0.6]); fields++;       // stubble shows gold, unless snow lies on it
     const a = Math.atan2(T[i].z, T[i].x), c = Math.cos(a), sn = Math.sin(a);
     for (let u = -3; u <= 3; u++) for (let v = -2; v <= 2; v++) {
       const du = u * 9 + (rnd() - 0.5) * 1.5, dv = v * 10 + (rnd() - 0.5) * 1.5, sx = x + du * c - dv * sn, sz = z + du * sn + dv * c;

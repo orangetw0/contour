@@ -15,7 +15,7 @@ for (let i = 0; i < 4; i++) {
   const K = q.get('kits') ? q.get('kits').split(',') : Object.keys(KITS);
   const who = (q.get('who') ? JSON.parse(q.get('who')) : [[72, 1.8], [58, 1.66], [95, 1.78], [78, 1.62]])[i], geo = makeGeo(who[1] / 1.8);
   const bike = createBike({ frame: KITS[K[i]].bike, geo, style: i < 2 ? 'climbing' : 'aero' }); rig.add(bike.object);
-  const av = createAvatar(await loadCharacter(kinds[i % 2]), { kit: KITS[K[i]], sex: kinds[i % 2], kg: who[0], heightM: who[1], skin: ['light', 'medium', 'tan', 'dark'][i], geo }); rig.add(av.object);
+  const av = createAvatar(await loadCharacter(kinds[i % 2]), { kit: KITS[K[i]], sex: kinds[i % 2], kg: who[0], heightM: who[1], skin: ['light', 'medium', 'tan', 'dark'][i], geo, wear: q.get('wear') || 'summer' }); rig.add(av.object);
   const a = +(q.get('a') || 0) + i * 1.3; bike.update(0, a); av.pose(a); riders.push(av);
 }
 const cam = new THREE.PerspectiveCamera(38, 2, 0.1, 100);

@@ -74,7 +74,26 @@ export function demH(x, z) {                 // the real ground under a point
   return (h[iz * w + ix] * (1 - u) + h[iz * w + ix + 1] * u) * (1 - v) + (h[(iz + 1) * w + ix] * (1 - u) + h[(iz + 1) * w + ix + 1] * u) * v;
 }
 
-export const line = buildLine(real ? real.road.map(p => new THREE.Vector3(p[0], p[1], p[2])) : valleyControl(), { closed });
+// Which country the road is in, as a two-letter code ('' when unknown): from the route's own note, else roughly from where it is.
+// It decides which side riders keep to and how the turning places at the ends of an open road are built.
+const NATIONS = { France: 'FR', Italy: 'IT', Switzerland: 'CH', Spain: 'ES', Netherlands: 'NL', Norway: 'NO', USA: 'US', England: 'GB', Scotland: 'GB', Wales: 'GB' };
+function countryOf() {
+  if (!real) return '';
+  if (real.look && real.look.country) return real.look.country;
+  const note = (BUILT_IN.find(r => r.id === COURSE) || {}).note || '', named = Object.keys(NATIONS).find(n => note.includes(n));
+  if (named) return NATIONS[named];
+  const { lat0: la, lon0: lo } = real.geo || {};
+  if (la == null) return '';
+  if (la > 49.9 && la < 61 && lo > -11 && (lo < -1.9 || (lo < 1.8 && la > 50.5 && !(lo > 1.3 && la < 51.05)))) return 'GB';     // Britain and Ireland
+  if (la > 50.75 && la < 53.6 && lo > 3.3 && lo < 7.2) return 'NL';
+  if (la > 24 && la < 50 && lo > -125 && lo < -66) return 'US';
+  if ((la > 24 && la < 46 && lo > 123 && lo < 146) || (la > -48 && la < -10 && lo > 112 && lo < 180) || (la > 6 && la < 36 && lo > 68 && lo < 90) || (la > -35 && la < -22 && lo > 16 && lo < 33)) return 'LEFT';   // Japan, Australia and New Zealand, India, southern Africa
+  return '';
+}
+export const COUNTRY = countryOf();
+// riders keep left in Britain (and in the invented valley, which was always ridden that way), right elsewhere
+export const KEEP = !real || COUNTRY === 'GB' || COUNTRY === 'LEFT' ? -1 : 1;
+export const line = buildLine(real ? real.road.map(p => new THREE.Vector3(p[0], p[1], p[2])) : valleyControl(), { closed, keep: KEEP });
 export const { LEN, N, P, T, R, at, nearRoad } = line;
 // Leckhampton: begin on the lane about 150 m below where the hill steepens, not out in the vale
 export const START = COURSE === 'leckhampton' ? 850 : imported ? 5 : 0;

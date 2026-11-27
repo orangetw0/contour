@@ -8,6 +8,7 @@ import { uPx } from './smoke.js';
 import { uLid, uCloudLit, uCloudDark, uCloudHaze } from './clouds.js';
 import { terrainMat } from './terrain.js';
 import { road } from './road.js';
+import { LOOK } from './look.js';
 
 /* ---------- weather ---------- */
 // An overcast lid: a dome that greys out the clear sky by a chosen amount.
@@ -109,6 +110,9 @@ const WEATHER = {
 // Christmas dusk: the last low sun, a blue sky closing in, light snow falling.
 WEATHER.snow = { sun: 5, sunCol: [1, 0.64, 0.46], hemi: 2.5, fog: 0.0015, fogCol: [hz[0] * 0.8, hz[1] * 0.86, hz[2] * 1.05], dome: 0.4, domeH: hz, domeZ: grey(0.26, 0.33, 0.62),
                  cloud: 0.8, cLit: grey(1.7, 1.2, 1.05), cDark: grey(0.34, 0.4, 0.62), mote: 0, rays: 0.8, rain: 0, rough: 0.5, tint: 0.62, ground: 1, paint: 0, expo: 0.38, snow: 1 };
+// A winter's day: a pale, close sky with the sun a soft glow behind it and snow in the air.
+if (!XMAS) WEATHER.snow = { sun: 2.4, sunCol: [1, 0.95, 0.88], hemi: 5.4, fog: 0.0021, fogCol: grey(0.84, 0.87, 0.93), dome: 1, domeH: grey(0.84, 0.87, 0.93), domeZ: grey(0.6, 0.64, 0.72),
+                            cloud: 1, cLit: grey(0.98, 1, 1.05), cDark: grey(0.56, 0.59, 0.67), mote: 0, rays: 0, rain: 0, rough: 0.5, tint: 0.62, ground: 1, paint: 0, expo: 0.5, snow: 1 };
 for (const k in WEATHER) WEATHER[k].snow ??= 0;
 const wx = JSON.parse(JSON.stringify(WEATHER.golden));
 let wxTarget = WEATHER.golden;
@@ -150,7 +154,9 @@ document.querySelectorAll('#wx button').forEach(b => b.addEventListener('click',
 // Starry is still being worked on: it only appears on the local copy, not the hosted site.
 const LAB = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || location.protocol === 'file:';
 if (!LAB) document.querySelector('#wx [data-w="starry"]')?.remove();
-if (!XMAS) document.querySelector('#wx [data-w="snow"]')?.remove(); else setWeather('snow', true);
-addEventListener('keydown', e => { const n = ['golden', 'overcast', 'rain', 'mist', LAB && 'starry'][+e.key - 1]; if (n) setWeather(n); });
+// Snow can fall at Christmas and in winter. Winter opens under a winter sky: snowing where snow lies, overcast where it doesn't.
+const WINTER = XMAS || LOOK.season === 'winter';
+if (!WINTER) document.querySelector('#wx [data-w="snow"]')?.remove(); else setWeather(LOOK.snowy ? 'snow' : 'overcast', true);
+addEventListener('keydown', e => { const n = ['golden', 'overcast', 'rain', 'mist', LAB && 'starry', WINTER && 'snow'][+e.key - 1]; if (n) setWeather(n); });
 
 export { wx, setWeather, stepWeather, LAB };
