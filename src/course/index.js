@@ -55,7 +55,7 @@ if (COURSE === 'leckhampton') {
   }
   if (heights) {
     const g = survey, half = g.size / 2, cut = 0.5 + (0.5 - g.trees) * 0.3;
-    real = { size: g.size, cells: g.cells, h: heights, demMin: g.min, demMax: g.max, name: route.name, road: route.road, geo: route.geo, water: g.water ?? null, osm: { buildings: [], trees: [], lines: [], woods: '', credit: '' } };
+    real = { size: g.size, cells: g.cells, h: heights, demMin: g.min, demMax: g.max, name: route.name, road: route.road, geo: route.geo, water: g.water ?? null, look: g.look || null, osm: { buildings: [], trees: [], lines: [], woods: '', credit: '' } };
     // which ground is wooded is not surveyed yet: trees stand in patches below the tree line, thinning as they near it
     real.wood = (x, z) => Math.abs(x) < half && Math.abs(z) < half && (g.water == null || demH(x, z) > g.water + 1.5) && fbm(x / 210 + 17, z / 210 + 29, 3) > cut + 0.25 * smooth(g.treeline - 300, g.treeline, demH(x, z));
     $('credit').textContent = (g.gpx ? 'Road from a GPX file. ' : 'Road © OpenStreetMap contributors. ') + 'Terrain: Copernicus DEM GLO-30 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA. Tree cover is estimated.';

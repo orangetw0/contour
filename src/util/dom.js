@@ -14,6 +14,6 @@ export function panelButton(btn, box, draw) {
   box.addEventListener('click', e => e.stopPropagation());
 }
 
-// Panels open just under the row of controls, however many lines that row has wrapped onto.
-export const placePanel = box => { box.style.top = Math.round($('ctl').getBoundingClientRect().bottom + 10) + 'px'; };
+// Panels open just above the menu along the bottom, however many lines it has wrapped onto.
+export const placePanel = box => { const r = $('ctl').getBoundingClientRect(); box.style.bottom = (r.height ? Math.round(innerHeight - r.top + 10) : 64) + 'px'; };
 if (typeof addEventListener !== 'undefined') addEventListener('resize', () => document.querySelectorAll('.panel:not([hidden])').forEach(placePanel));

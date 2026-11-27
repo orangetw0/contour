@@ -1,7 +1,7 @@
 /* Contour: the page's entry point. Wires the simulation (src/sim) to the world you see (src/world) and to the
    controls, trainer, log, voice and sound (src/app). The simulation runs on its own clock; this file only draws it. */
 import * as THREE from 'three';
-import { $, query } from './util/dom.js';
+import { $, query, panelButton } from './util/dom.js';
 import { smooth } from './util/noise.js';
 import { COURSE, COURSE_NAME, XMAS, SCENERY, START, real, line, mkPose } from './course/index.js';
 import { initRoutes } from './app/routes.js';
@@ -12,7 +12,7 @@ import { createRider, stepRider, uTurn } from './sim/rider.js';
 import { createRiderView } from './riders/riderView.js';
 import { createLoop } from './sim/loop.js';
 import { MODELS, REAL } from './sim/physics.js';
-import { createRolling, wattsPerKg } from './sim/metrics.js';
+import { createRolling } from './sim/metrics.js';
 import { createRecorder } from './sim/recorder.js';
 import { buildSpeedLimit } from './course/speedLimit.js';
 import { loadProfile, bodyOf, lookOf } from './sim/profile.js';
@@ -26,6 +26,10 @@ import { initSettings } from './app/settings.js';
 import { initSave } from './app/save.js';
 import { initCompany } from './app/company.js';
 import { createBots, stepBot } from './sim/bots.js';
+import { createTally } from './sim/tally.js';
+import { initHud } from './app/hud.js';
+import { initStart } from './app/start.js';
+import { BUILT_IN } from './course/library.js';
 import { draftOf } from './sim/draft.js';
 
 const V3 = THREE.Vector3, { at } = line;
@@ -41,6 +45,7 @@ const cruise = SCENERY !== null ? 5 : null;                    // scenery mode: 
 const HZ = 60, power3s = createRolling(3, HZ), here = mkPose();
 const recorder = createRecorder({ startUnix: Math.floor(Date.now() / 1000), geo: real ? real.geo : null });
 let paused = false;                                            // P: stop the clock, the rider and the recording
+const tally = createTally();
 // other riders: ?bots=N sets how many (0 for none); scenery mode rides alone
 const botCount = SCENERY !== null ? 0 : Math.max(0, Math.min(40, query.get('bots') === null ? 14 : +query.get('bots') || 0));
 const bots = botCount ? createBots(line, { humans: botCount, near: START }) : [];
@@ -56,6 +61,7 @@ const loop = createLoop(h => {
   }
   stepRider(rider, line, h, { model, limits, cruise });
   power3s.push(rider.target);
+  tally.step(rider.target, rider.v, rider.altitude, h);
   if (SCENERY === null) recorder.step(rider, at(rider.s, here).p, h);
 }, { hz: HZ });
 // Browsers stop drawing a hidden tab, and slow its timers. A worker's timer keeps going, so the ride does too.
@@ -101,9 +107,6 @@ setView(view);
 $('view').addEventListener('click', () => setView(view === 'third' ? 'first' : 'third'));
 $('pwr').addEventListener('input', e => { rider.target = +e.target.value; });
 $('skip').addEventListener('click', () => skip(250));
-$('course').textContent = 'Route: ' + COURSE_NAME;
-const showUnits = () => { $('h-sp-u').textContent = unit.speedLabel; $('h-di-u').textContent = unit.distanceLabel; };
-showUnits();
 
 // hide everything on screen, leaving only the ride: the button, the H key, or by voice. H, a click, or "show" brings it back.
 const setClean = hide => document.body.classList.toggle('clean', hide);
@@ -113,16 +116,21 @@ addEventListener('click', () => { if (isClean()) setClean(false); });
 addEventListener('keydown', e => { if ((e.key === 'h' || e.key === 'H') && !e.metaKey && !e.ctrlKey && !e.altKey) setClean(!isClean()); });
 
 const trainer = initTrainer({ rider, setTarget });
+panelButton($('connbtn'), $('conn'), () => {});                 // trainer, heart rate, voice and keys live in one panel
 initLog({ rider, course: COURSE, name: COURSE_NAME, unit: () => unit });
-initRoutes({ current: COURSE, unit: () => unit });
+const routes = initRoutes({ current: COURSE, unit: () => unit });
 initHeart({ rider });
-initSettings({ profile, onChange: p => { profile = p; unit = units(p.units); rider.body = bodyOf(p); showUnits(); riderView.dress(lookOf(p)); } });
+initSettings({ profile, onChange: p => { profile = p; unit = units(p.units); rider.body = bodyOf(p); hud.labels(); riderView.dress(lookOf(p)); } });
 riderView.dress(lookOf(profile));
 initSave({ recorder, course: COURSE_NAME.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'ride' });
 rider.name = 'you';
 if (bots.length) company = initCompany({ scene, camera, line, bots, rider, unit: () => unit,
   onJoin: p => { Object.assign(rider, { dir: p.dir, s: line.wrap(p.s - p.dir * 4), lane: p.lane, v: p.v, uturn: 0 }); } });
 else $('pacerbtn').remove();
+const hud = initHud({ rider, line, bots, tally, unit: () => unit, name: COURSE_NAME });
+// the first screen holds the ride until you press Ride
+if (initStart({ name: COURSE_NAME, note: (BUILT_IN.find(r => r.id === COURSE) || {}).note, routes, skip: SCENERY !== null,
+  riderLine: () => `${profile.riderKg.toFixed(0)} kg · ${profile.bike} bike · ${profile.units}`, onRide: () => setPaused(false) })) setPaused(true);
 initVoice({ trainer, setWeather, skip, setClean, xmas: XMAS, lab: LAB });
 initAudio();
 
@@ -218,15 +226,7 @@ function frame() {
   if (now - huT >= 250) {                                        // the numbers refresh four times a second
     huT = now;
     drawHeadUnit(unit.speed(v), unit.speedLabel, rider.target);
-    $('h-pw').textContent = rider.target.toFixed(0);
-    $('h-p3').textContent = power3s.avg.toFixed(0);
-    $('h-wk').textContent = wattsPerKg(power3s.avg, rider.body.riderKg).toFixed(1);
-    $('h-hr-box').hidden = rider.hr == null; if (rider.hr != null) $('h-hr').textContent = rider.hr.toFixed(0);
-    $('h-cd-box').hidden = rider.cadence == null; if (rider.cadence != null) $('h-cd').textContent = rider.cadence.toFixed(0);
-    $('h-dr-box').hidden = rider.drag > 0.97; $('h-dr').textContent = Math.round((1 - rider.drag) * 100);
-    $('h-sp').textContent = unit.speed(v).toFixed(1);
-    $('h-gr').textContent = (rider.grade >= 0 ? '+' : '') + rider.grade.toFixed(1);
-    $('h-di').textContent = unit.distance(rider.dist).toFixed(2);
+    hud.update(power3s.avg, v, 0.25);
   }
 
   composer.render();

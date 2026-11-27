@@ -6,6 +6,7 @@ import { imgAsphalt, imgTex, imgAsphaltN, imgGravel } from './textures.js';
 import { MAX_ANISO, scene } from './renderer.js';
 import { uTime, rainU } from './sky.js';
 import './terrain.js';
+import { LOOK } from './look.js';
 
 /* ---------- road ---------- */
 const TILES = Math.round(LEN / 12);
@@ -29,8 +30,17 @@ function asphaltTex() {
   const W = 1024, Hh = 2048, [c, g] = canvas2d(W * 2, Hh * 2);
   g.scale(2, 2);
   for (let x = 0; x < W; x += 439) for (let y = 0; y < Hh; y += 512) g.drawImage(imgAsphalt, x, y, 439, 512);   // 3 m scan tiles
-  g.fillStyle = 'rgba(8,8,12,0.22)'; g.fillRect(0, 0, W, Hh);                                                     // damp
-  for (const x of [0.2, 0.36, 0.64, 0.8]) {            // darker wheel tracks
+  const style = LOOK.road, [tr, tg, tb, ta] = style.tint;
+  g.fillStyle = `rgba(${tr},${tg},${tb},${ta})`; g.fillRect(0, 0, W, Hh);                                           // damp, weathered or bleached
+  if (style.setts) {                                   // granite setts in rows across the road, each a little different
+    for (let y = 0, row = 0; y < Hh; y += 30, row++) for (let x = (row % 2) * -23; x < W; x += 46) {
+      const l = 96 + rnd() * 56 | 0; g.fillStyle = `rgba(${l},${l - 3},${l - 9},0.9)`; g.fillRect(x + 2, y + 2, 42, 26);
+      g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(x + 4, y + 3, 38, 6);
+    }
+    g.fillStyle = 'rgba(30,28,24,0.25)'; g.fillRect(0, 0, W, Hh);
+  }
+  if (LOOK.frost) { g.fillStyle = 'rgba(205,210,220,0.18)'; g.fillRect(0, 0, W, Hh); }
+  if (!style.setts) for (const x of [0.2, 0.36, 0.64, 0.8]) {            // darker wheel tracks
     const gr = g.createLinearGradient((x - 0.06) * W, 0, (x + 0.06) * W, 0);
     gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.5, 'rgba(0,0,0,0.17)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
     g.fillStyle = gr; g.fillRect((x - 0.06) * W, 0, 0.12 * W, Hh);
@@ -46,11 +56,14 @@ function asphaltTex() {
     for (let k = 0, n = 20 + rnd() * 50; k < n; k++) { a += (rnd() - 0.5) * 1.1; x += Math.cos(a) * 9; y += Math.sin(a) * 9; g.lineTo(x, y); }
     g.stroke();
   }
-  g.fillStyle = 'rgba(224,220,206,0.92)';              // paint
-  g.fillRect(36, 0, 16, Hh); g.fillRect(972, 0, 16, Hh); g.fillRect(505, 0, 14, Hh / 3);
-  for (let i = 0; i < 6000; i++) {                     // worn paint
-    const s = 1 + rnd() * 3;
-    g.fillStyle = 'rgba(72,72,76,0.7)'; g.fillRect([36, 972, 505][i % 3] + rnd() * 16, rnd() * Hh, s, s * (1 + rnd() * 3));
+  const paint = 'rgba(224,220,206,0.92)', lines = [];           // paint: [x, width, dashed]
+  if (style.edge !== 'none') lines.push([36, 16, style.edge === 'dashed'], [972, 16, style.edge === 'dashed']);
+  if (style.centre === 'dashed') lines.push([505, 14, true]);
+  if (style.centre === 'yellow') lines.push([494, 12, false, 'rgba(226,178,52,0.92)'], [518, 12, false, 'rgba(226,178,52,0.92)']);
+  for (const [x, w, dashed, colour] of lines) {
+    g.fillStyle = colour || paint;
+    if (!dashed) g.fillRect(x, 0, w, Hh); else if (x > 400 && x < 600) g.fillRect(x, 0, w, Hh / 3); else for (let y = 0; y < Hh; y += Hh / 8) g.fillRect(x, y, w, Hh / 24);
+    for (let i = 0; i < 2000; i++) { const sz = 1 + rnd() * 3; g.fillStyle = 'rgba(72,72,76,0.7)'; g.fillRect(x + rnd() * w, rnd() * Hh, sz, sz * (1 + rnd() * 3)); }      // worn paint
   }
   if (XMAS) {                                          // snow ploughed to the edges, slush between the wheel tracks
     for (const [x0, x1] of [[0, 150], [W, W - 150]]) {

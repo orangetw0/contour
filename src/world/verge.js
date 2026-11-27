@@ -3,7 +3,8 @@ import { rnd } from '../util/noise.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { V3 } from './shared.js';
-import { P, R, T, XMAS, N } from '../course/index.js';
+import { P, R, T, XMAS, N, real } from '../course/index.js';
+import { LOOK } from './look.js';
 import { uTime } from './sky.js';
 import { meshH } from './terrain.js';
 import { scene } from './renderer.js';
@@ -30,6 +31,7 @@ const tuftGeo = (() => {
   return g;
 })();
 const grassMat = new THREE.MeshStandardMaterial({ map: grassTex(), alphaTest: 0.45, roughness: 1 });
+if (real) grassMat.color.setRGB(...LOOK.grass);
 grassMat.onBeforeCompile = s => {
   s.uniforms.uTime = uTime;
   s.vertexShader = 'uniform float uTime;\n' + s.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>

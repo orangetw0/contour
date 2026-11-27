@@ -109,7 +109,7 @@ async function build(spec) {
   const q = new Uint16Array(w * w); for (let k = 0; k < q.length; k++) q[k] = Math.round((h[k] - lo) / (hi - lo || 1) * 65535);
   fs.writeFileSync(new URL(`${spec.id}.dem`, OUT), Buffer.from(q.buffer));
   const packed = packRoute(spec.name || route.name, route);
-  packed.ground = { size, cells, min: +lo.toFixed(1), max: +hi.toFixed(1), treeline: spec.treeline ?? 1900, trees: spec.trees ?? 0.4, ...(spec.keep ? { gpx: true } : {}), ...(water !== null ? { water } : {}) };
+  packed.ground = { size, cells, min: +lo.toFixed(1), max: +hi.toFixed(1), treeline: spec.treeline ?? 1900, trees: spec.trees ?? 0.4, look: { region: spec.region || 'temperate', road: spec.road || 'main' }, ...(spec.keep ? { gpx: true } : {}), ...(water !== null ? { water } : {}) };
   fs.writeFileSync(new URL(`${spec.id}.json`, OUT), JSON.stringify(packed));
   const grade = route.closed ? '' : `, ${(100 * (route.high - route.low) / route.length).toFixed(1)}% mean`;
   console.log(`${spec.id}: ${packed.km} km, ${packed.up} m up, ${route.low.toFixed(0)}-${route.high.toFixed(0)} m${grade}, ${(route.extent / 1000).toFixed(1)} km across, ${cell} m cells x ${cells}, ${route.closed ? 'loop' : 'open'}${water !== null ? `, water at ${water} m` : ''}`);

@@ -7,6 +7,7 @@ import { uTime } from './sky.js';
 import { meshH, TS } from './terrain.js';
 import { chalets, xl, XL_COLS } from './chalets.js';
 import { scene } from './renderer.js';
+import { LOOK } from './look.js';
 
 /* ---------- pines: a trunk plus whorls of needle cards ---------- */
 {
@@ -128,7 +129,7 @@ import { scene } from './renderer.js';
         }
       }
     }
-    fol.setColorAt(i, col.setRGB(0.7 + rnd() * 0.3, 0.75 + rnd() * 0.25, 0.6 + rnd() * 0.3));
+    { const [tr, tg, tb] = real ? LOOK.tree : [1, 1, 1], w = real ? 0.75 + rnd() * 0.5 : 1; fol.setColorAt(i, col.setRGB((0.7 + rnd() * 0.3) * (1 + (tr - 1) * w), (0.75 + rnd() * 0.25) * (1 + (tg - 1) * w), (0.6 + rnd() * 0.3) * (1 + (tb - 1) * w))); }
   });
   for (const m of [fol, trunk]) { m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; scene.add(m); }
 }
